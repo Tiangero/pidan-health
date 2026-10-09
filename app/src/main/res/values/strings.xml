@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">皮蛋健康</string>
+    <string name="tab_record">记录</string>
+    <string name="tab_food">食物库</string>
+    <string name="tab_exercise">运动</string>
+    <string name="tab_stats">统计</string>
+</resources>
