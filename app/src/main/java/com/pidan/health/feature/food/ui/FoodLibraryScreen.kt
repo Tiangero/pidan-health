@@ -8,16 +8,21 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -56,7 +61,8 @@ import org.koin.androidx.compose.koinViewModel
  * 食物库页：单列列表（封面 / 名称 / 单位标识 / 快捷录入「+」）+ 底部「新建食物」。
  * 快捷录入走场景 B 固化计算写 diet_record，首页卡片响应式即时刷新。
  * 「新建食物」/ 点击列表项 → T6 新建/编辑页（foodId 区分模式）。
- * 顶栏「管理」（批量删除）在 T7 实现。
+ * 顶栏「管理」进入管理模式（T7）：多选 + 批量删除，隐藏「+」与「新建食物」，
+ * 底部操作栏（全选 / 删除 / 完成），删除前有防呆确认。
  */
 @Composable
 fun FoodLibraryScreen(
@@ -66,6 +72,7 @@ fun FoodLibraryScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val successMessage by viewModel.entrySuccessMessage.collectAsStateWithLifecycle()
+    val deleteSuccessCount by viewModel.deleteSuccessCount.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -79,6 +86,16 @@ fun FoodLibraryScreen(
         }
     }
 
+    // 批量删除成功提示
+    LaunchedEffect(deleteSuccessCount) {
+        deleteSuccessCount?.let { count ->
+            snackbarHostState.showSnackbar(
+                context.getString(R.string.food_manage_delete_success, count)
+            )
+            viewModel.consumeDeleteSuccessCount()
+        }
+    }
+
     // 「新建食物」→ 编辑页（foodId=null 新建模式）
     val onNewFoodClick: () -> Unit = { onNavigateToFoodEdit(null) }
 
@@ -87,14 +104,24 @@ fun FoodLibraryScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             AppTopBar(
-                title = { AppTopBarTitle(stringResource(R.string.topbar_title_food)) },
-                actions = {
-                    TextButton(onClick = { /* TODO(T7): 进入管理模式（批量删除） */ }) {
-                        Text(
-                            text = stringResource(R.string.topbar_action_manage),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = BrandOrangeDark
+                title = {
+                    if (state.isManageMode) {
+                        AppTopBarTitle(
+                            stringResource(R.string.food_manage_selected_count, state.selectedIds.size)
                         )
+                    } else {
+                        AppTopBarTitle(stringResource(R.string.topbar_title_food))
+                    }
+                },
+                actions = {
+                    if (!state.isManageMode && state.items.isNotEmpty()) {
+                        TextButton(onClick = viewModel::enterManageMode) {
+                            Text(
+                                text = stringResource(R.string.topbar_action_manage),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = BrandOrangeDark
+                            )
+                        }
                     }
                 }
             )
@@ -118,15 +145,30 @@ fun FoodLibraryScreen(
 
                 else -> FoodList(
                     items = state.items,
+                    isManageMode = state.isManageMode,
+                    selectedIds = state.selectedIds,
                     onQuickEntry = viewModel::startQuickEntry,
+                    onToggleSelect = viewModel::toggleSelected,
                     onItemClick = { onNavigateToFoodEdit(it.id) },
                     modifier = Modifier.fillMaxSize()
                 )
             }
 
-            // 底部「新建食物」占位（页面在 T6 实现），空态之外固定悬浮在底部
-            if (state.items.isNotEmpty()) {
-                NewFoodButton(
+            // 底部操作区：管理模式显示全选/删除/完成操作栏，否则显示「新建食物」
+            when {
+                state.isManageMode && state.items.isNotEmpty() -> ManageActionBar(
+                    isAllSelected = state.selectedIds.containsAll(state.items.map { it.id }.toSet()) &&
+                        state.items.isNotEmpty(),
+                    hasSelection = state.selectedIds.isNotEmpty(),
+                    onSelectAll = viewModel::toggleSelectAll,
+                    onDelete = viewModel::requestDeleteSelected,
+                    onDone = viewModel::exitManageMode,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                )
+
+                state.items.isNotEmpty() -> NewFoodButton(
                     onClick = onNewFoodClick,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -143,12 +185,44 @@ fun FoodLibraryScreen(
             onDismiss = viewModel::dismissQuickEntry
         )
     }
+
+    // 批量删除防呆确认（M3 AlertDialog）
+    if (state.isDeleteConfirmVisible) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissDeleteConfirm,
+            title = { Text(stringResource(R.string.food_manage_delete_confirm_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.food_manage_delete_confirm_text,
+                        state.selectedIds.size
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirmDeleteSelected) {
+                    Text(
+                        text = stringResource(R.string.food_manage_delete_confirm),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::dismissDeleteConfirm) {
+                    Text(text = stringResource(R.string.weight_dialog_cancel))
+                }
+            }
+        )
+    }
 }
 
 @Composable
 private fun FoodList(
     items: List<FoodItemUi>,
+    isManageMode: Boolean,
+    selectedIds: Set<Long>,
     onQuickEntry: (FoodItemUi) -> Unit,
+    onToggleSelect: (Long) -> Unit,
     onItemClick: (FoodItemUi) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -160,31 +234,51 @@ private fun FoodList(
         items(items, key = { it.id }) { food ->
             FoodItemRow(
                 food = food,
+                isManageMode = isManageMode,
+                isSelected = food.id in selectedIds,
                 onQuickEntry = onQuickEntry,
+                onToggleSelect = { onToggleSelect(food.id) },
                 onClick = { onItemClick(food) }
             )
         }
     }
 }
 
-/** 列表行（对齐设计稿 .food-item）：白卡 + 封面 + 名称/单位标识 + 「+」；点击行进编辑页 */
+/**
+ * 列表行（对齐设计稿 .food-item）：白卡 + 封面 + 名称/单位标识 + 「+」；点击行进编辑页。
+ * 管理模式：行首出现 M3 Checkbox（多选），隐藏「+」；点击行内容仍跳 T6 编辑页（单选编辑）。
+ */
 @Composable
 private fun FoodItemRow(
     food: FoodItemUi,
+    isManageMode: Boolean,
+    isSelected: Boolean,
     onQuickEntry: (FoodItemUi) -> Unit,
+    onToggleSelect: () -> Unit,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surface)
+            .background(
+                if (isSelected) BrandOrangeContainer.copy(alpha = 0.35f)
+                else MaterialTheme.colorScheme.surface
+            )
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        if (isManageMode) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = { onToggleSelect() },
+                colors = CheckboxDefaults.colors(checkedColor = BrandOrange)
+            )
+        }
+
         FoodCover(food = food)
 
         Column(modifier = Modifier.weight(1f)) {
@@ -203,21 +297,79 @@ private fun FoodItemRow(
             )
         }
 
-        // 「+」快捷录入（对齐设计稿 .add-btn：32dp 圆角方块，品牌浅底 + 品牌深字）
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(BrandOrangeContainer)
-                .clickable { onQuickEntry(food) },
-            contentAlignment = Alignment.Center
-        ) {
+        // 「+」快捷录入（对齐设计稿 .add-btn：32dp 圆角方块，品牌浅底 + 品牌深字）；管理模式隐藏
+        if (!isManageMode) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(BrandOrangeContainer)
+                    .clickable { onQuickEntry(food) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "+",
+                    color = BrandOrangeDark,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+/** 管理模式底部操作栏：全选 / 删除 / 完成 */
+@Composable
+private fun ManageActionBar(
+    isAllSelected: Boolean,
+    hasSelection: Boolean,
+    onSelectAll: () -> Unit,
+    onDelete: () -> Unit,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(onClick = onSelectAll) {
             Text(
-                text = "+",
+                text = if (isAllSelected) {
+                    stringResource(R.string.food_manage_deselect_all)
+                } else {
+                    stringResource(R.string.food_manage_select_all)
+                },
                 color = BrandOrangeDark,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.labelLarge
             )
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Button(
+            onClick = onDelete,
+            enabled = hasSelection,
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        ) {
+            Text(text = stringResource(R.string.food_manage_delete))
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Button(
+            onClick = onDone,
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = BrandOrange)
+        ) {
+            Text(text = stringResource(R.string.food_manage_done))
         }
     }
 }

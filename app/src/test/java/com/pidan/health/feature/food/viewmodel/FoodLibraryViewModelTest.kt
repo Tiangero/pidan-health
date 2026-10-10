@@ -40,6 +40,7 @@ class FoodLibraryViewModelTest {
 
     private lateinit var foodRepo: FakeFoodRepository
     private lateinit var dietRepo: FakeDietRepository
+    private lateinit var imageStorage: FakeFoodImageStorage
     private lateinit var viewModel: FoodLibraryViewModel
 
     /** 场景 B 原样模板：米饭 */
@@ -62,10 +63,11 @@ class FoodLibraryViewModelTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         foodRepo = FakeFoodRepository()
         dietRepo = FakeDietRepository()
+        imageStorage = FakeFoodImageStorage()
         viewModel = FoodLibraryViewModel(
             foodRepository = foodRepo,
             dietRepository = dietRepo,
-            foodImageStorage = FakeFoodImageStorage(),
+            foodImageStorage = imageStorage,
             dateProvider = FakeDateProvider(today)
         )
     }
@@ -132,6 +134,123 @@ class FoodLibraryViewModelTest {
         assertTrue(viewModel.uiState.value.items.any { it.unitLabel == "按克" })
     }
 
+    // ---- 管理模式（T7）----
+
+    @Test
+    fun `进入管理模式 - 勾选 - 全选 - 取消全选 - 状态流转正确`() = runTest {
+        foodRepo.seed(riceTemplate())
+        foodRepo.seed(riceTemplate().copy(id = 2L, name = "鸡胸肉", unitType = FoodUnit.BY_GRAM))
+
+        viewModel.enterManageMode()
+        assertTrue(viewModel.uiState.value.isManageMode)
+        assertEquals(emptySet<Long>(), viewModel.uiState.value.selectedIds)
+
+        viewModel.toggleSelected(1L)
+        assertEquals(setOf(1L), viewModel.uiState.value.selectedIds)
+
+        // 重复勾选同一项 = 取消勾选
+        viewModel.toggleSelected(1L)
+        assertEquals(emptySet<Long>(), viewModel.uiState.value.selectedIds)
+
+        viewModel.toggleSelected(1L)
+        viewModel.toggleSelectAll()
+        assertEquals(setOf(1L, 2L), viewModel.uiState.value.selectedIds)
+
+        // 已全选时再点全选 = 取消全选
+        viewModel.toggleSelectAll()
+        assertEquals(emptySet<Long>(), viewModel.uiState.value.selectedIds)
+    }
+
+    @Test
+    fun `批量删除确认 - 模板移除 - 选中清空并退出管理模式`() = runTest {
+        foodRepo.seed(riceTemplate())
+        foodRepo.seed(riceTemplate().copy(id = 2L, name = "鸡胸肉", unitType = FoodUnit.BY_GRAM))
+
+        viewModel.enterManageMode()
+        viewModel.toggleSelected(1L)
+        viewModel.requestDeleteSelected()
+        assertTrue(viewModel.uiState.value.isDeleteConfirmVisible)
+
+        viewModel.confirmDeleteSelected()
+
+        assertEquals(listOf(2L), foodRepo.all().map { it.id })
+        val state = viewModel.uiState.value
+        assertTrue(!state.isManageMode)
+        assertEquals(emptySet<Long>(), state.selectedIds)
+        assertTrue(!state.isDeleteConfirmVisible)
+        assertEquals(1, viewModel.deleteSuccessCount.value)
+    }
+
+    @Test
+    fun `取消删除确认弹窗 - 不执行删除`() = runTest {
+        foodRepo.seed(riceTemplate())
+        viewModel.enterManageMode()
+        viewModel.toggleSelected(1L)
+        viewModel.requestDeleteSelected()
+
+        viewModel.dismissDeleteConfirm()
+
+        assertEquals(1, foodRepo.all().size)
+        assertTrue(!viewModel.uiState.value.isDeleteConfirmVisible)
+        // 管理模式与勾选保持，用户可继续调整
+        assertTrue(viewModel.uiState.value.isManageMode)
+        assertEquals(setOf(1L), viewModel.uiState.value.selectedIds)
+    }
+
+    @Test
+    fun `批量删除后 - 已固化的diet_record一字不变 - 历史冻结红线`() = runTest {
+        foodRepo.seed(riceTemplate())
+        viewModel.startQuickEntry(viewModel.uiState.value.items.first())
+        viewModel.confirmQuickEntry("1.5")
+        val recordBefore = dietRepo.records.single()
+
+        foodRepo.seed(riceTemplate().copy(id = 2L, name = "鸡胸肉", unitType = FoodUnit.BY_GRAM))
+        viewModel.enterManageMode()
+        viewModel.toggleSelected(1L)
+        viewModel.confirmDeleteSelected()
+
+        // 模板已删，但固化记录一字不变
+        assertEquals(listOf(2L), foodRepo.all().map { it.id })
+        assertEquals(recordBefore, dietRepo.records.single())
+    }
+
+    @Test
+    fun `批量删除 - 同步清理对应沙盒封面文件`() = runTest {
+        val withCover = riceTemplate().copy(id = 1L, coverImagePath = "cover_1.webp")
+        foodRepo.seed(withCover)
+        foodRepo.seed(riceTemplate().copy(id = 2L, name = "鸡胸肉", unitType = FoodUnit.BY_GRAM))
+
+        viewModel.enterManageMode()
+        viewModel.toggleSelected(1L)
+        viewModel.confirmDeleteSelected()
+
+        assertEquals(listOf("cover_1.webp"), imageStorage.deletedPaths)
+    }
+
+    @Test
+    fun `管理模式下 - 快捷录入被拦截`() = runTest {
+        foodRepo.seed(riceTemplate())
+        viewModel.enterManageMode()
+
+        viewModel.startQuickEntry(viewModel.uiState.value.items.first())
+
+        assertNull(viewModel.uiState.value.entryTarget)
+    }
+
+    @Test
+    fun `模板被外部删除 - 自动移出勾选集`() = runTest {
+        foodRepo.seed(riceTemplate())
+        foodRepo.seed(riceTemplate().copy(id = 2L, name = "鸡胸肉", unitType = FoodUnit.BY_GRAM))
+        viewModel.enterManageMode()
+        viewModel.toggleSelected(1L)
+        viewModel.toggleSelected(2L)
+
+        // 模拟其他入口删掉了 id=1 的模板，列表流自动更新
+        foodRepo.deleteByIds(listOf(1L))
+
+        assertEquals(setOf(2L), viewModel.uiState.value.selectedIds)
+    }
+
     // ---- 测试替身 ----
 
     private class FakeFoodRepository : FoodRepository {
@@ -190,9 +309,13 @@ class FoodLibraryViewModelTest {
     }
 
     private class FakeFoodImageStorage : FoodImageStorage {
+        val deletedPaths = mutableListOf<String?>()
         override fun resolve(relativePath: String?): File? = null
         override fun coverDir(): File = File("unused")
         override fun adopt(tempFile: File): String? = null
+        override fun delete(relativePath: String?) {
+            deletedPaths += relativePath
+        }
     }
 
     private class FakeDateProvider(private val today: String) : DateProvider {

@@ -22,6 +22,11 @@ interface FoodImageStorage {
      * 移动失败返回 null（调用方保存时降级为无封面，不阻断保存）。
      */
     fun adopt(tempFile: File): String?
+
+    /**
+     * 删除沙盒内封面文件（模板删除后清理，尽力而为，失败不抛异常不阻断流程）。
+     */
+    fun delete(relativePath: String?)
 }
 
 class FoodImageStorageImpl(context: Context) : FoodImageStorage {
@@ -53,6 +58,15 @@ class FoodImageStorageImpl(context: Context) : FoodImageStorage {
     private fun adoptFileName(extension: String): String {
         val ext = extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: ".webp"
         return "cover_${System.currentTimeMillis()}_${(0..999).random()}$ext"
+    }
+
+    override fun delete(relativePath: String?) {
+        val path = relativePath?.takeIf { it.isNotBlank() } ?: return
+        try {
+            dir.resolve(path).takeIf { it.isFile }?.delete()
+        } catch (_: Exception) {
+            // 尽力而为：清理失败不阻断模板删除流程
+        }
     }
 
     private companion object {

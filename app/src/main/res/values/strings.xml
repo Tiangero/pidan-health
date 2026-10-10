@@ -74,6 +74,17 @@
     <string name="quick_entry_cancel">取消</string>
     <string name="quick_entry_success">已记录「%1$s」，首页已更新</string>
 
+    <!-- 食物库管理模式（T7） -->
+    <string name="food_manage_selected_count">已选 %1$d 项</string>
+    <string name="food_manage_select_all">全选</string>
+    <string name="food_manage_deselect_all">取消全选</string>
+    <string name="food_manage_delete">删除</string>
+    <string name="food_manage_done">完成</string>
+    <string name="food_manage_delete_confirm_title">删除所选食物？</string>
+    <string name="food_manage_delete_confirm_text">将删除 %1$d 个食物模板。已有的饮食记录与统计数据按历史冻结原则不受影响。</string>
+    <string name="food_manage_delete_confirm">删除</string>
+    <string name="food_manage_delete_success">已删除 %1$d 个食物模板</string>
+
     <!-- 新建/编辑食物页（T6） -->
     <string name="food_edit_title_new">新建食物</string>
     <string name="food_edit_title_edit">编辑食物</string>
@@ -111,4 +122,5 @@
     <string name="food_edit_unit_price_empty">填写金额与总量后自动计算</string>
     <string name="food_edit_save">保存</string>
     <string name="food_edit_save_invalid">请先完善必填项</string>
+
 </resources>
