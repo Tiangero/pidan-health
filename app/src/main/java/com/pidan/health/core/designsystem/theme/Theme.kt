@@ -1,8 +1,6 @@
 package com.pidan.health.core.designsystem.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -39,29 +37,16 @@ private val LightColorScheme = lightColorScheme(
     surfaceContainerHighest = Color(0xFFEDEAE6)
 )
 
-private val DarkColorScheme = darkColorScheme(
-    primary = BrandOrangeLight,
-    onPrimary = Color(0xFF431407),
-    primaryContainer = Color(0xFF7C2D12),
-    onPrimaryContainer = BrandOrangeContainer,
-    background = WarmDarkBackground,
-    onBackground = Color(0xFFE7E5E4),
-    surface = WarmDarkSurface,
-    onSurface = Color(0xFFE7E5E4),
-    surfaceVariant = Color(0xFF3F3B38),
-    onSurfaceVariant = Color(0xFFD6D3D1),
-    outline = Color(0xFF57534E),
-    outlineVariant = Color(0xFF3F3B38)
-)
-
+/**
+ * 主题固定浅色（2026-10-10 用户拍板）：不随系统深色模式切换，
+ * App 始终用白色浅色方案，深色方案已整体移除。
+ */
 @Composable
 fun PidanHealthTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = LightColorScheme,
         typography = PidanTypography,
         shapes = PidanShapes,
         content = content

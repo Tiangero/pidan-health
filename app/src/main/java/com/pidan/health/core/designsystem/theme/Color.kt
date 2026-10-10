@@ -16,7 +16,3 @@ val CardBorder = Color(0xFFEDEAE6)       // --line 卡片描边
 val RingTrack = Color(0xFFF3F2F0)        // 环形进度轨道 / 浅灰控件底
 val InkText = Color(0xFF1F2937)          // --ink 主文字
 val SubText = Color(0xFF6B7280)          // --sub 次文字
-
-// 暗色主题
-val WarmDarkBackground = Color(0xFF1C1917)
-val WarmDarkSurface = Color(0xFF292524)
