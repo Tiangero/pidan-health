@@ -1,6 +1,7 @@
 package com.pidan.health.app
 
 import android.app.Application
+import com.pidan.health.app.di.uiModule
 import com.pidan.health.core.data.di.dataModule
 import com.pidan.health.core.domain.di.domainModule
 import org.koin.android.ext.koin.androidContext
@@ -12,7 +13,7 @@ class PidanApplication : Application() {
         super.onCreate()
         startKoin {
             androidContext(this@PidanApplication)
-            modules(dataModule, domainModule)
+            modules(dataModule, domainModule, uiModule)
         }
     }
 }

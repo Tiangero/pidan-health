@@ -4,4 +4,43 @@
     <string name="tab_food">食物库</string>
     <string name="tab_exercise">运动</string>
     <string name="tab_stats">统计</string>
+
+    <!-- 顶栏 -->
+    <string name="topbar_title_food">食物库</string>
+    <string name="topbar_title_exercise">运动记录</string>
+    <string name="topbar_title_stats">统计分析</string>
+    <string name="topbar_action_manage">管理</string>
+    <string name="stats_range_week">本周</string>
+    <string name="stats_range_month">本月</string>
+
+    <!-- 记录页 -->
+    <string name="record_weight_title">今日体重</string>
+    <string name="record_nutrition_title">今日营养摄入</string>
+    <string name="record_cost_title">今日饮食开销</string>
+    <string name="action_edit">编辑</string>
+    <string name="action_settings">设置</string>
+    <string name="unit_kg">kg</string>
+    <string name="chart_7d">近7天</string>
+    <string name="chart_30d">近30天</string>
+    <string name="week_avg_cost">本周日均 %1$s</string>
+    <string name="week_avg_cost_empty">本周暂无对比数据</string>
+    <string name="nutrition_empty_hint">记录今日体重后，这里会显示五大营养素目标与摄入进度</string>
+
+    <!-- 营养素与状态 -->
+    <string name="nutrient_carbs">碳水</string>
+    <string name="nutrient_protein">蛋白</string>
+    <string name="nutrient_fat">脂肪</string>
+    <string name="nutrient_fiber">纤维</string>
+    <string name="nutrient_salt">盐</string>
+    <string name="status_ok">达标</string>
+    <string name="status_under">未达标</string>
+    <string name="status_over">超标</string>
+
+    <!-- 体重编辑弹窗 -->
+    <string name="weight_dialog_title">记录今日体重</string>
+    <string name="weight_dialog_hint">体重 (kg)</string>
+    <string name="weight_dialog_invalid">请输入有效的体重</string>
+    <string name="weight_dialog_preview_title">目标预览</string>
+    <string name="weight_dialog_confirm">保存</string>
+    <string name="weight_dialog_cancel">取消</string>
 </resources>

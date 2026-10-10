@@ -15,6 +15,10 @@ interface SnapshotDao {
     @Query("SELECT * FROM daily_snapshot WHERE date = :date LIMIT 1")
     suspend fun getSnapshot(date: String): DailySnapshot?
 
+    /** 某天快照响应式观察（首页体重/目标卡片自动刷新） */
+    @Query("SELECT * FROM daily_snapshot WHERE date = :date LIMIT 1")
+    fun observeSnapshot(date: String): Flow<DailySnapshot?>
+
     /** 生成/更新当天快照：INSERT OR REPLACE，按主键 date 覆盖，历史日期不受影响 */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSnapshot(snapshot: DailySnapshot)

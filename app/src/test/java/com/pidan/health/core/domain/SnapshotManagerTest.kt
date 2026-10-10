@@ -173,6 +173,8 @@ class SnapshotManagerTest {
 
         override suspend fun getSnapshot(date: String): DailySnapshot? = snapshots[date]
 
+        override fun observeSnapshot(date: String): Flow<DailySnapshot?> = flowOf(snapshots[date])
+
         override suspend fun upsertSnapshot(snapshot: DailySnapshot) {
             snapshots[snapshot.date] = snapshot
         }
@@ -196,5 +198,7 @@ class SnapshotManagerTest {
 
     private class FakeDateProvider(var today: String) : DateProvider {
         override fun today(): String = today
+
+        override fun daysAgo(days: Int): String = today  // 快照逻辑测试不关心区间计算
     }
 }

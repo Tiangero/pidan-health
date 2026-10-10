@@ -3,6 +3,7 @@ package com.pidan.health.core.data.repository
 import com.pidan.health.core.data.dao.SnapshotDao
 import com.pidan.health.core.data.entity.DailySnapshot
 import com.pidan.health.core.data.model.WeightTrendItem
+import kotlinx.coroutines.flow.Flow
 
 /**
  * 每日快照仓库。历史冻结原则：upsert 只按当天主键覆盖，历史快照永不回溯。
@@ -10,6 +11,9 @@ import com.pidan.health.core.data.model.WeightTrendItem
 interface SnapshotRepository {
 
     suspend fun getSnapshot(date: String): DailySnapshot?
+
+    /** 某天快照响应式观察（首页体重/目标卡片自动刷新） */
+    fun observeSnapshot(date: String): Flow<DailySnapshot?>
 
     /** 生成/更新当天快照（INSERT OR REPLACE） */
     suspend fun upsertSnapshot(snapshot: DailySnapshot)
@@ -25,6 +29,8 @@ class SnapshotRepositoryImpl(
 ) : SnapshotRepository {
 
     override suspend fun getSnapshot(date: String): DailySnapshot? = snapshotDao.getSnapshot(date)
+
+    override fun observeSnapshot(date: String): Flow<DailySnapshot?> = snapshotDao.observeSnapshot(date)
 
     override suspend fun upsertSnapshot(snapshot: DailySnapshot) = snapshotDao.upsertSnapshot(snapshot)
 

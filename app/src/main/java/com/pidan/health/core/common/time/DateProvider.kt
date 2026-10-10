@@ -10,6 +10,9 @@ import java.time.format.DateTimeFormatter
  */
 interface DateProvider {
     fun today(): String
+
+    /** n 天前的日期字符串（days=1 即昨天），供"近7天日均"等区间计算 */
+    fun daysAgo(days: Int): String
 }
 
 /** 生产环境默认实现（minSdk 26，java.time 可直接使用） */
@@ -17,4 +20,6 @@ object SystemDateProvider : DateProvider {
     private val formatter: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
     override fun today(): String = LocalDate.now().format(formatter)
+
+    override fun daysAgo(days: Int): String = LocalDate.now().minusDays(days.toLong()).format(formatter)
 }
