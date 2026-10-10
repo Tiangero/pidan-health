@@ -43,4 +43,17 @@
     <string name="weight_dialog_preview_title">目标预览</string>
     <string name="weight_dialog_confirm">保存</string>
     <string name="weight_dialog_cancel">取消</string>
+
+    <!-- 食物库（T5） -->
+    <string name="food_empty_hint">食物库还是空的，先建一个食物吧</string>
+    <string name="food_new">＋ 新建食物</string>
+    <string name="food_new_placeholder">新建食物页将在 T6 提供，敬请期待</string>
+    <string name="quick_entry_title">录入「%1$s」</string>
+    <string name="quick_entry_amount_by_serving">数量（份）</string>
+    <string name="quick_entry_amount_by_gram">数量（g）</string>
+    <string name="quick_entry_serving_hint">单份 %1$s</string>
+    <string name="quick_entry_invalid">请输入有效的数量</string>
+    <string name="quick_entry_confirm">录入</string>
+    <string name="quick_entry_cancel">取消</string>
+    <string name="quick_entry_success">已记录「%1$s」，首页已更新</string>
 </resources>

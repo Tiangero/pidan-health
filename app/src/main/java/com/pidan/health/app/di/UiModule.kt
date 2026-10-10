@@ -1,5 +1,6 @@
 package com.pidan.health.app.di
 
+import com.pidan.health.feature.food.viewmodel.FoodLibraryViewModel
 import com.pidan.health.feature.record.viewmodel.RecordViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.module.Module
@@ -16,6 +17,15 @@ val uiModule: Module = module {
             dietRepository = get(),
             userPreferencesRepository = get(),
             snapshotManager = get(),
+            dateProvider = get()
+        )
+    }
+
+    viewModel {
+        FoodLibraryViewModel(
+            foodRepository = get(),
+            dietRepository = get(),
+            foodImageStorage = get(),
             dateProvider = get()
         )
     }

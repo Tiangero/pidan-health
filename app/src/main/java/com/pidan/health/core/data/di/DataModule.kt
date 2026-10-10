@@ -12,6 +12,8 @@ import com.pidan.health.core.data.repository.SnapshotRepository
 import com.pidan.health.core.data.repository.SnapshotRepositoryImpl
 import com.pidan.health.core.data.repository.UserPreferencesRepository
 import com.pidan.health.core.data.repository.UserPreferencesRepositoryImpl
+import com.pidan.health.core.data.storage.FoodImageStorage
+import com.pidan.health.core.data.storage.FoodImageStorageImpl
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.dsl.module
@@ -42,4 +44,7 @@ val dataModule: Module = module {
     single<SnapshotRepository> { SnapshotRepositoryImpl(get()) }
     single<ExerciseRepository> { ExerciseRepositoryImpl(get()) }
     single<UserPreferencesRepository> { UserPreferencesRepositoryImpl(get()) }
+
+    // 封面图片存取（T5 解析展示，T6 写入压缩图）
+    single<FoodImageStorage> { FoodImageStorageImpl(androidContext()) }
 }
