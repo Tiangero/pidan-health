@@ -1,6 +1,7 @@
 package com.pidan.health.feature.food.viewmodel
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,7 +11,9 @@ import com.pidan.health.core.data.storage.CoverImageCompressor
 import com.pidan.health.core.data.storage.FoodImageStorage
 import com.pidan.health.core.domain.DietIntakeCalculator
 import com.pidan.health.core.domain.FoodUnit
+import com.pidan.health.core.domain.NutritionTableParser
 import com.pidan.health.core.domain.SaltConverter
+import com.pidan.health.core.ocr.OcrStrategy
 import java.io.File
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -55,7 +58,12 @@ data class FoodEditUiState(
     // ---- 提交 ----
     val isSaving: Boolean = false,
     /** 保存成功（一次性，UI 收到后返回列表页） */
-    val isSaved: Boolean = false
+    val isSaved: Boolean = false,
+    // ---- OCR 拍照识别（T8）----
+    /** 正在拍照识别（网络中，UI 按钮 spinner） */
+    val isRecognizing: Boolean = false,
+    /** 识别/解析失败（一次性，UI 提示「识别暂不可用」后由 VM 复位） */
+    val ocrFailed: Boolean = false
 )
 
 /**
@@ -65,12 +73,14 @@ data class FoodEditUiState(
  * - 编辑态加载模板回填（盐字段按 换算关系 反推为钠 mg 展示）；
  * - 表单校验（按份必填单份克重、价格成对填写）；
  * - 封面压缩编排（压缩结果先落 cache，保存成功才收编进沙盒）；
+ * - OCR 拍照识别编排（T8）：原图字节 → OcrStrategy → 营养表解析 → 回填表单（结果落在表单可手动修正）；
  * - 盐换算唯一入口 [SaltConverter]：入库存盐 g，UI 输入钠 mg。
  */
 class FoodEditViewModel(
     private val foodRepository: FoodRepository,
     private val foodImageStorage: FoodImageStorage,
     private val coverCompressor: CoverImageCompressor,
+    private val ocrStrategy: OcrStrategy,
     savedStateHandle: SavedStateHandle,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
@@ -165,6 +175,56 @@ class FoodEditViewModel(
     }
 
     fun consumeCoverError() = _uiState.update { it.copy(coverFailed = false) }
+
+    // ---- OCR 拍照识别（T8）----
+
+    /** OCR 拍摄输出 Uri（复用压缩器的相机临时文件管理，TakePicture 契约用） */
+    fun prepareOcrCapture(): Uri = coverCompressor.prepareCameraCapture()
+
+    /**
+     * 拍照识别完成：读原图字节（不压缩保精度）→ OCR → 营养表解析 → 回填表单字段。
+     * 任何一步失败都置 ocrFailed（UI 提示「识别暂不可用」），表单保持原值无缝切回手动录入。
+     * 回填按包装基准口径填「基准量 + 各营养素 + 钠 mg」，入库归一化仍由保存链路统一处理。
+     */
+    fun onOcrImageCaptured(sourceUri: String) {
+        if (_uiState.value.isRecognizing) return
+        viewModelScope.launch(ioDispatcher) {
+            _uiState.update { it.copy(isRecognizing = true, ocrFailed = false) }
+            val values = try {
+                val bytes = requireNotNull(coverCompressor.prepareOcrBytes(sourceUri)) { "读取图片失败" }
+                Log.d(TAG, "OCR step1 读图成功: ${bytes.size} 字节")
+                val lines = ocrStrategy.recognize(bytes).getOrThrow()
+                Log.d(TAG, "OCR step2 识别返回 ${lines.size} 行: $lines")
+                val parsed = requireNotNull(NutritionTableParser.parse(lines)) { "未解析出营养成分" }
+                Log.d(TAG, "OCR step3 解析结果: $parsed")
+                parsed
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "OCR 链路失败", e)
+                null
+            }
+
+            _uiState.update { current ->
+                if (values == null) {
+                    current.copy(isRecognizing = false, ocrFailed = true)
+                } else {
+                    // 只回填识别到的项，未命中的字段保留用户已填内容
+                    current.copy(
+                        isRecognizing = false,
+                        basisGramsText = formatNumber(values.basisGrams),
+                        carbsText = values.carbsG?.let(::formatNumber) ?: current.carbsText,
+                        proteinText = values.proteinG?.let(::formatNumber) ?: current.proteinText,
+                        fatText = values.fatG?.let(::formatNumber) ?: current.fatText,
+                        fiberText = values.fiberG?.let(::formatNumber) ?: current.fiberText,
+                        sodiumMgText = values.sodiumMg?.let(::formatNumber) ?: current.sodiumMgText
+                    )
+                }
+            }
+        }
+    }
+
+    fun consumeOcrError() = _uiState.update { it.copy(ocrFailed = false) }
 
     // ---- 派生校验与预览（UI 零计算） ----
 
@@ -319,6 +379,7 @@ class FoodEditViewModel(
     )
 
     companion object {
+        private const val TAG = "BaiduOcr"
         const val NAV_KEY_FOOD_ID = "foodId"
         const val NEW_FOOD_ID = -1L
 

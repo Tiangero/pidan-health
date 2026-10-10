@@ -22,6 +22,19 @@ object CoverImageRules {
 }
 
 /**
+ * OCR 识别用图规则（T8）：百度 OCR 限制 base64 后 ≤8MB、长边 ≤4096px，
+ * 此处留足余量（原图 ≤4MB、长边 ≤2048px）——印刷体营养表该分辨率精度足够，
+ * 且请求体积小识别速度快（实测原图 11MB base64 直传被拒 216205 input oversize）。
+ */
+object OcrImageRules {
+    const val MAX_RAW_BYTES = 4 * 1024 * 1024
+    const val MAX_LONG_EDGE_PX = 2048
+    const val START_QUALITY = 90
+    const val MIN_QUALITY = 60
+    const val QUALITY_STEP = 15
+}
+
+/**
  * 封面图片压缩：任意来源（相册 / 相机）强制压到 50KB 内。
  * 压缩结果先落 cache 临时目录，保存食物时经 [FoodImageStorage.adopt] 收编进沙盒，
  * 用户放弃保存时临时文件随 cache 回收，不产生孤儿文件。
@@ -33,6 +46,13 @@ interface CoverImageCompressor {
 
     /** 准备相机拍摄输出文件并返回可授权给相机 App 的 Uri（TakePicture 契约用） */
     fun prepareCameraCapture(): Uri
+
+    /**
+     * 准备 OCR 识别用图片字节（T8）：
+     * 原图 ≤4MB 且长边 ≤2048px 时原样直传保精度；否则降采样重编码 JPEG。
+     * 失败返回 null（调用方降级手动录入）。
+     */
+    fun prepareOcrBytes(sourceUri: String): ByteArray?
 }
 
 class CoverImageCompressorImpl(private val context: Context) : CoverImageCompressor {
@@ -78,6 +98,47 @@ class CoverImageCompressorImpl(private val context: Context) : CoverImageCompres
             "${context.packageName}.fileprovider",
             file
         )
+    }
+
+    override fun prepareOcrBytes(sourceUri: String): ByteArray? {
+        return try {
+        val uri = Uri.parse(sourceUri) ?: return null
+        val raw = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        // 注意：inJustDecodeBounds = true 时 decodeByteArray 返回 null（只填充 bounds），
+        // 不能把返回值接进 elvis 链，判断要用 bounds.outWidth/Height
+        BitmapFactory.decodeByteArray(raw, 0, raw.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val longEdge = maxOf(bounds.outWidth, bounds.outHeight)
+
+        // 原图够小且长边不超限：原样直传，保精度
+        if (raw.size <= OcrImageRules.MAX_RAW_BYTES && longEdge <= OcrImageRules.MAX_LONG_EDGE_PX) {
+            raw
+        } else {
+            // 粗缩（inSampleSize 2 的幂）到长边 ≤2048，JPEG q90 重编码；仍超 4MB 则阶梯降质量
+            var sample = 1
+            while (longEdge / (sample * 2) >= OcrImageRules.MAX_LONG_EDGE_PX) sample *= 2
+            val decoded = BitmapFactory.decodeByteArray(
+                raw, 0, raw.size, BitmapFactory.Options().apply { inSampleSize = sample }
+            ) ?: return null
+            val scaled = if (longEdgeOf(decoded) > OcrImageRules.MAX_LONG_EDGE_PX) {
+                scaleBitmap(decoded, OcrImageRules.MAX_LONG_EDGE_PX)
+            } else {
+                decoded
+            }
+            var quality = OcrImageRules.START_QUALITY
+            var encoded = encode(scaled, Bitmap.CompressFormat.JPEG, quality)
+            while (encoded.size > OcrImageRules.MAX_RAW_BYTES && quality > OcrImageRules.MIN_QUALITY) {
+                quality -= OcrImageRules.QUALITY_STEP
+                encoded = encode(scaled, Bitmap.CompressFormat.JPEG, quality)
+            }
+            if (scaled !== decoded) scaled.recycle()
+            encoded
+        }
+    } catch (e: Exception) {
+        Log.e(TAG, "OCR 图片准备失败 uri=$sourceUri", e)
+        null
+    }
     }
 
     // ---- 内部实现 ----

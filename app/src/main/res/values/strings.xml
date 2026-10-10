@@ -123,4 +123,12 @@
     <string name="food_edit_save">保存</string>
     <string name="food_edit_save_invalid">请先完善必填项</string>
 
+    <!-- OCR 拍照识别（T8） -->
+    <string name="food_edit_ocr_action">拍照识别</string>
+    <string name="food_edit_ocr_hint">拍一张包装营养成分表，自动填入下方数值（识别后可手动修改）</string>
+    <string name="food_edit_ocr_crop_title">框住营养成分表</string>
+    <string name="food_edit_ocr_crop_hint">拖动边角调整范围，框住完整的营养成分表</string>
+    <string name="food_edit_ocr_crop_confirm">开始识别</string>
+    <string name="food_edit_ocr_crop_cancel">取消</string>
+    <string name="food_ocr_unavailable">识别暂不可用，请手动录入</string>
 </resources>

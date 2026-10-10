@@ -20,6 +20,22 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // T8：从项目根目录 .env 读取百度 OCR 密钥注入 BuildConfig（.env 已被 .gitignore 忽略）
+        val envFile = rootProject.file(".env")
+        val envVars: Map<String, String> = if (envFile.isFile) {
+            envFile.readLines()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() && !it.startsWith("#") && it.contains("=") }
+                .associate { line ->
+                    val idx = line.indexOf('=')
+                    line.take(idx).trim() to line.substring(idx + 1).trim()
+                }
+        } else {
+            emptyMap()
+        }
+        buildConfigField("String", "BAIDU_OCR_AK", "\"${envVars["BAIDU_OCR_AK"] ?: ""}\"")
+        buildConfigField("String", "BAIDU_OCR_SK", "\"${envVars["BAIDU_OCR_SK"] ?: ""}\"")
     }
 
     buildTypes {
@@ -40,11 +56,20 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+    testOptions {
+        unitTests {
+            // JVM 单测中 android.util.Log 等框架方法调用降级为 no-op（T8 OCR 失败路径打日志用）
+            isReturnDefaultValues = true
+        }
     }
 }
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    // 裁剪库 CropImageActivity 是 AppCompatActivity，需要 AppCompat 主题与运行时
+    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -81,6 +106,7 @@ dependencies {
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging.interceptor)
+    implementation(libs.image.cropper)
     implementation(libs.kotlinx.serialization.json)
 
     // DataStore

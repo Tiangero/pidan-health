@@ -46,6 +46,7 @@ val uiModule: Module = module {
             foodRepository = get(),
             foodImageStorage = get(),
             coverCompressor = get(),
+            ocrStrategy = get(),
             savedStateHandle = get()
         )
     }

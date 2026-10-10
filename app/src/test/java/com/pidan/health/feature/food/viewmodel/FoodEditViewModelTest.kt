@@ -7,6 +7,7 @@ import com.pidan.health.core.data.repository.FoodRepository
 import com.pidan.health.core.data.storage.CoverImageCompressor
 import com.pidan.health.core.data.storage.FoodImageStorage
 import com.pidan.health.core.domain.FoodUnit
+import com.pidan.health.core.ocr.OcrStrategy
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -49,7 +50,7 @@ class FoodEditViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun newViewModel(foodId: Long? = null): FoodEditViewModel {
+    private fun newViewModel(foodId: Long? = null, ocrStrategy: OcrStrategy = FakeOcrStrategy()): FoodEditViewModel {
         val handle = SavedStateHandle().apply {
             foodId?.let { set(FoodEditViewModel.NAV_KEY_FOOD_ID, it) }
         }
@@ -57,6 +58,7 @@ class FoodEditViewModelTest {
             foodRepository = foodRepo,
             foodImageStorage = FakeFoodImageStorage(),
             coverCompressor = compressor,
+            ocrStrategy = ocrStrategy,
             savedStateHandle = handle,
             ioDispatcher = UnconfinedTestDispatcher()
         )
@@ -270,6 +272,89 @@ class FoodEditViewModelTest {
         assertEquals("0", FoodEditViewModel.formatNumber(0f))
     }
 
+    // ---- OCR 拍照识别（T8）----
+
+    @Test
+    fun `OCR识别成功 - 营养表数值与基准回填表单`() = runTest {
+        val ocr = FakeOcrStrategy(
+            lines = listOf(
+                "营养成分表",
+                "项目每80gNRV%",
+                "蛋白质6.4克",
+                "脂肪1.2克",
+                "碳水化合物56.3克",
+                "膳食纤维0克",
+                "钠120毫克"
+            )
+        )
+        val vm = newViewModel(ocrStrategy = ocr)
+        vm.onNameChange("燕麦片")
+
+        vm.onOcrImageCaptured("content://test/ocr")
+
+        // 原图字节送达 OCR（未压缩保精度）
+        assertTrue(ocr.lastImageBytes!!.isNotEmpty())
+        val state = vm.uiState.value
+        assertFalse(state.ocrFailed)
+        assertFalse(state.isRecognizing)
+        assertEquals("80", state.basisGramsText)
+        assertEquals("56.3", state.carbsText)
+        assertEquals("6.4", state.proteinText)
+        assertEquals("1.2", state.fatText)
+        assertEquals("0", state.fiberText)
+        assertEquals("120", state.sodiumMgText)
+        // 名称等其余字段不受影响
+        assertEquals("燕麦片", state.name)
+
+        // 识别结果落在表单中，可手动修正（保留手动修正入口）
+        vm.onNutritionChange(NutritionField.SODIUM, "100")
+        assertEquals("100", vm.uiState.value.sodiumMgText)
+    }
+
+    @Test
+    fun `OCR识别成功 - 未命中的字段保留用户已填内容`() = runTest {
+        val ocr = FakeOcrStrategy(lines = listOf("蛋白质3g"))
+        val vm = newViewModel(ocrStrategy = ocr)
+        vm.onNutritionChange(NutritionField.CARBS, "50")
+
+        vm.onOcrImageCaptured("content://test/ocr")
+
+        assertEquals("50", vm.uiState.value.carbsText)
+        assertEquals("3", vm.uiState.value.proteinText)
+    }
+
+    @Test
+    fun `OCR接口失败 - ocrFailed置位 - 表单原值不动`() = runTest {
+        val ocr = FakeOcrStrategy(fail = true)
+        val vm = newViewModel(ocrStrategy = ocr)
+        vm.onNutritionChange(NutritionField.CARBS, "25")
+
+        vm.onOcrImageCaptured("content://test/ocr")
+
+        assertTrue(vm.uiState.value.ocrFailed)
+        assertFalse(vm.uiState.value.isRecognizing)
+        assertEquals("25", vm.uiState.value.carbsText)
+
+        // 提示消费后复位
+        vm.consumeOcrError()
+        assertFalse(vm.uiState.value.ocrFailed)
+    }
+
+    @Test
+    fun `OCR图片读取失败或解析不出营养成分 - 同样降级提示`() = runTest {
+        compressor.failReadOcr = true
+        val vm = newViewModel(ocrStrategy = FakeOcrStrategy(lines = listOf("蛋白质3g")))
+
+        vm.onOcrImageCaptured("content://test/ocr")
+        assertTrue(vm.uiState.value.ocrFailed)
+        compressor.failReadOcr = false
+
+        // 识别出文字但不是营养表 → 解析失败 → 降级
+        val vm2 = newViewModel(ocrStrategy = FakeOcrStrategy(lines = listOf("净含量500g")))
+        vm2.onOcrImageCaptured("content://test/ocr")
+        assertTrue(vm2.uiState.value.ocrFailed)
+    }
+
     // ---- 测试替身 ----
 
     private class FakeFoodRepository : FoodRepository {
@@ -309,6 +394,7 @@ class FoodEditViewModelTest {
     private class FakeCoverCompressor : CoverImageCompressor {
         var failNext = false
         var lastInput: File? = null
+        var failReadOcr = false
 
         override fun compressToCache(sourceUri: String): File? {
             if (failNext) return null
@@ -316,11 +402,29 @@ class FoodEditViewModelTest {
         }
 
         override fun prepareCameraCapture(): Uri = Uri.parse("content://fake/camera")!!
+
+        override fun prepareOcrBytes(sourceUri: String): ByteArray? =
+            if (failReadOcr) null else byteArrayOf(1, 2, 3)
+    }
+
+    private class FakeOcrStrategy(
+        private val lines: List<String>? = null,
+        private val fail: Boolean = false
+    ) : OcrStrategy {
+        var lastImageBytes: ByteArray? = null
+
+        override suspend fun recognize(imageBytes: ByteArray): Result<List<String>> {
+            lastImageBytes = imageBytes
+            if (fail) return Result.failure(IllegalStateException("网络错误"))
+            return lines?.let { Result.success(it) }
+                ?: Result.failure(IllegalStateException("未配置"))
+        }
     }
 
     private class FakeFoodImageStorage : FoodImageStorage {
         override fun resolve(relativePath: String?): File? = null
         override fun coverDir(): File = File("unused")
         override fun adopt(tempFile: File): String? = "fake_cover.webp"
+        override fun delete(relativePath: String?) = Unit
     }
 }

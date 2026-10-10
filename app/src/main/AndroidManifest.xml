@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- T8 OCR：百度 OCR 走 HTTPS 网络请求（普通权限，安装即授予） -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:name=".app.PidanApplication"
         android:allowBackup="true"
@@ -23,6 +26,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- T8 OCR 裁剪：改为页内 CropImageView 浮层（FoodEditScreen.OcrCropOverlay），
+             不再跳库自带 CropImageActivity，Manifest 声明已随之移除 -->
 
         <!-- T6 封面：相机拍摄临时文件共享（无需相机权限，走系统相机 App） -->
         <provider

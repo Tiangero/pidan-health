@@ -6,16 +6,23 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -242,10 +249,53 @@ fun NutritionCard(
     fiber: String,
     sodiumMg: String,
     saltPreviewText: String?,
+    isRecognizing: Boolean,
+    onOcrClick: () -> Unit,
     onNutritionChange: (NutritionField, String) -> Unit
 ) {
     DashboardCard {
-        SectionTitle(text = stringResource(R.string.food_edit_section_nutrition))
+        // 标题行 + 拍照识别入口（识别中显示 spinner，识别结果直接回填下方表单，可手动修正）
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.food_edit_section_nutrition),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+            if (isRecognizing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = BrandOrangeDark,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                TextButton(
+                    onClick = onOcrClick,
+                    colors = ButtonDefaults.textButtonColors(contentColor = BrandOrangeDark)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PhotoCamera,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.food_edit_ocr_action),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
+        }
+        Text(
+            text = stringResource(R.string.food_edit_ocr_hint),
+            fontSize = 12.sp,
+            color = SubText,
+            modifier = Modifier.padding(bottom = 10.dp)
+        )
 
         // 营养基准量：包装营养表按多少 g 标注就填多少（默认 100），App 自动换算为每 100g
         NumberField(
