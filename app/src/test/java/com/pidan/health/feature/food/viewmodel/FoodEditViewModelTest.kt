@@ -1,0 +1,326 @@
+package com.pidan.health.feature.food.viewmodel
+
+import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
+import com.pidan.health.core.data.entity.FoodTemplate
+import com.pidan.health.core.data.repository.FoodRepository
+import com.pidan.health.core.data.storage.CoverImageCompressor
+import com.pidan.health.core.data.storage.FoodImageStorage
+import com.pidan.health.core.domain.FoodUnit
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+
+/**
+ * 新建/编辑食物页 ViewModel 验证（T6）：
+ * 1. 选「按份」未填单份克重 → 无法保存（完成标准 1）；
+ * 2. 钠 mg → 盐 g 换算经 SaltConverter 唯一入口落库（核心红线）；
+ * 3. 购买总量按份输入 × 单份克重折算成克入库（收集箱按份计价方案）；
+ * 4. 编辑态回填与保存复用同一页面。
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+class FoodEditViewModelTest {
+
+    private lateinit var foodRepo: FakeFoodRepository
+    private lateinit var compressor: FakeCoverCompressor
+
+    @Before
+    fun setup() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+        foodRepo = FakeFoodRepository()
+        compressor = FakeCoverCompressor()
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    private fun newViewModel(foodId: Long? = null): FoodEditViewModel {
+        val handle = SavedStateHandle().apply {
+            foodId?.let { set(FoodEditViewModel.NAV_KEY_FOOD_ID, it) }
+        }
+        return FoodEditViewModel(
+            foodRepository = foodRepo,
+            foodImageStorage = FakeFoodImageStorage(),
+            coverCompressor = compressor,
+            savedStateHandle = handle,
+            ioDispatcher = UnconfinedTestDispatcher()
+        )
+    }
+
+    // ---- 完成标准 1：按份必须填单份克重 ----
+
+    @Test
+    fun `按份未填单份克重 - 无法保存且不落库`() = runTest {
+        val vm = newViewModel()
+        vm.onNameChange("鸡蛋")
+        vm.onUnitTypeSelect(1) // 按份
+
+        assertFalse(vm.canSave)
+        assertFalse(vm.isServingValid)
+
+        vm.save()
+        assertTrue(foodRepo.all().isEmpty())
+
+        // 补填后可保存
+        vm.onWeightPerServingChange("50")
+        assertTrue(vm.canSave)
+        vm.save()
+        assertEquals(1, foodRepo.all().size)
+    }
+
+    // ---- 盐换算：钠 mg → 盐 g（唯一入口 SaltConverter） ----
+
+    @Test
+    fun `钠600mg入库换算为盐1_5g`() = runTest {
+        val vm = newViewModel()
+        vm.onNameChange("挂面")
+        vm.onNutritionChange(NutritionField.SODIUM, "600")
+
+        // 预览：600mg → 1.5g
+        assertEquals(1.5f, vm.saltPreviewGrams!!, 0.001f)
+
+        vm.save()
+        assertEquals(1.5f, foodRepo.all().single().saltPer100g, 0.001f)
+    }
+
+    @Test
+    fun `钠未填时盐默认为0`() = runTest {
+        val vm = newViewModel()
+        vm.onNameChange("米饭")
+        vm.save()
+        assertEquals(0f, foodRepo.all().single().saltPer100g, 0.001f)
+    }
+
+    // ---- 收集箱按份计价：购买总量按份输入折算成克入库 ----
+
+    @Test
+    fun `购买总量按份输入 - 折算克入库且单价预览正确`() = runTest {
+        val vm = newViewModel()
+        vm.onNameChange("鸡蛋")
+        vm.onWeightPerServingChange("50")
+        vm.onPriceChange("8")
+        vm.onPurchaseUnitSelect(1) // 按份
+        vm.onPurchaseAmountChange("10")
+
+        // 10 份 × 50g = 500g，8 元 / 500g = 1.6 元/100g
+        assertEquals(1.6f, vm.unitPricePer100g!!, 0.001f)
+
+        vm.save()
+        val saved = foodRepo.all().single()
+        assertEquals(500f, saved.totalAmount!!, 0.001f)
+        assertEquals(8f, saved.totalPrice!!, 0.001f)
+    }
+
+    @Test
+    fun `购买总量按份但缺单份克重 - 价格校验失败`() = runTest {
+        val vm = newViewModel()
+        vm.onPriceChange("8")
+        vm.onPurchaseUnitSelect(1)
+        vm.onPurchaseAmountChange("10")
+
+        assertFalse(vm.isPriceValid)
+        assertFalse(vm.canSave)
+        assertNull(vm.unitPricePer100g)
+    }
+
+    @Test
+    fun `金额与总量只填一个 - 价格校验失败`() = runTest {
+        val vm = newViewModel()
+        vm.onNameChange("米饭")
+        vm.onPriceChange("10")
+        assertFalse(vm.isPriceValid)
+
+        vm.onPriceChange("")
+        vm.onPurchaseAmountChange("1000")
+        assertFalse(vm.isPriceValid)
+
+        vm.onPriceChange("10")
+        assertTrue(vm.isPriceValid)
+    }
+
+    // ---- 编辑复用 ----
+
+    @Test
+    fun `编辑态 - 模板回填且盐g反推为钠mg`() = runTest {
+        foodRepo.seed(
+            FoodTemplate(
+                id = 7L,
+                name = "鸡胸肉",
+                unitType = FoodUnit.BY_GRAM,
+                carbsPer100g = 1.1f,
+                saltPer100g = 0.16f,
+                totalPrice = 30f,
+                totalAmount = 1500f
+            )
+        )
+        val vm = newViewModel(foodId = 7L)
+
+        val state = vm.uiState.value
+        assertTrue(state.isEdit)
+        assertEquals("鸡胸肉", state.name)
+        // 0.16g 盐 → 64mg 钠
+        assertEquals("64", state.sodiumMgText)
+        assertEquals("30", state.priceText)
+
+        // 改名保存 → update 而非 insert
+        vm.onNameChange("去皮鸡胸肉")
+        vm.save()
+        val saved = foodRepo.all().single()
+        assertEquals(7L, saved.id)
+        assertEquals("去皮鸡胸肉", saved.name)
+        assertEquals(1, foodRepo.all().size)
+    }
+
+    // ---- 封面压缩编排 ----
+
+    @Test
+    fun `图片压缩成功 - 临时文件挂到pending保存时收编`() = runTest {
+        val vm = newViewModel()
+        vm.onNameChange("米饭")
+        vm.onImagePicked("content://test/img")
+        assertEquals(compressor.lastInput, vm.uiState.value.pendingCoverFile)
+
+        vm.save()
+        // 保存时收编：compressor 产出的临时文件被 adopt 成相对路径
+        assertEquals("fake_cover.webp", foodRepo.all().single().coverImagePath)
+    }
+
+    @Test
+    fun `图片压缩失败 - coverFailed置位且不阻断保存`() = runTest {
+        compressor.failNext = true
+        val vm = newViewModel()
+        vm.onNameChange("米饭")
+        vm.onImagePicked("content://test/img")
+
+        assertTrue(vm.uiState.value.coverFailed)
+        assertNull(vm.uiState.value.pendingCoverFile)
+
+        vm.consumeCoverError()
+        assertFalse(vm.uiState.value.coverFailed)
+
+        vm.save()
+        assertNull(foodRepo.all().single().coverImagePath)
+    }
+
+    // ---- 营养基准量：包装按非 100g 标注，入库自动归一化为每 100g ----
+
+    @Test
+    fun `基准80g录入 - 碳水25钠600mg - 入库碳水31_25盐1_875g`() = runTest {
+        val vm = newViewModel()
+        vm.onNameChange("小包装零食")
+        vm.onBasisGramsChange("80")
+        vm.onNutritionChange(NutritionField.CARBS, "25")
+        vm.onNutritionChange(NutritionField.SODIUM, "600")
+
+        // 预览：600mg/80g → 750mg/100g → 1.875g 盐
+        assertEquals(1.875f, vm.saltPreviewGrams!!, 0.001f)
+
+        vm.save()
+        val saved = foodRepo.all().single()
+        assertEquals(31.25f, saved.carbsPer100g, 0.001f)
+        assertEquals(1.875f, saved.saltPer100g, 0.001f)
+    }
+
+    @Test
+    fun `基准默认100 - 入库数值与输入一致`() = runTest {
+        val vm = newViewModel()
+        vm.onNameChange("米饭")
+        vm.onNutritionChange(NutritionField.CARBS, "25")
+        vm.save()
+        assertEquals(25f, foodRepo.all().single().carbsPer100g, 0.001f)
+        assertEquals("100", vm.uiState.value.basisGramsText)
+    }
+
+    @Test
+    fun `基准清空或非正数 - 无法保存`() = runTest {
+        val vm = newViewModel()
+        vm.onNameChange("米饭")
+        vm.onBasisGramsChange("")
+        assertFalse(vm.isBasisValid)
+        assertFalse(vm.canSave)
+        vm.save()
+        assertTrue(foodRepo.all().isEmpty())
+
+        vm.onBasisGramsChange("0")
+        assertFalse(vm.canSave)
+    }
+
+    // ---- formatNumber ----
+
+    @Test
+    fun `formatNumber - 去尾零`() {
+        assertEquals("25", FoodEditViewModel.formatNumber(25f))
+        assertEquals("0.16", FoodEditViewModel.formatNumber(0.16f))
+        assertEquals("1.5", FoodEditViewModel.formatNumber(1.5f))
+        assertEquals("0", FoodEditViewModel.formatNumber(0f))
+    }
+
+    // ---- 测试替身 ----
+
+    private class FakeFoodRepository : FoodRepository {
+        private val state = MutableStateFlow<List<FoodTemplate>>(emptyList())
+
+        fun seed(template: FoodTemplate) {
+            state.value = state.value + template
+        }
+
+        fun all(): List<FoodTemplate> = state.value
+
+        override fun observeAll(): Flow<List<FoodTemplate>> = state
+
+        override suspend fun getById(id: Long): FoodTemplate? = state.value.firstOrNull { it.id == id }
+
+        private var nextId = 100L
+
+        override suspend fun insert(food: FoodTemplate): Long {
+            val withId = food.copy(id = nextId++)
+            state.value = state.value + withId
+            return withId.id
+        }
+
+        override suspend fun update(food: FoodTemplate) {
+            state.value = state.value.map { if (it.id == food.id) food else it }
+        }
+
+        override suspend fun delete(food: FoodTemplate) {
+            state.value = state.value.filterNot { it.id == food.id }
+        }
+
+        override suspend fun deleteByIds(ids: List<Long>) {
+            state.value = state.value.filterNot { it.id in ids }
+        }
+    }
+
+    private class FakeCoverCompressor : CoverImageCompressor {
+        var failNext = false
+        var lastInput: File? = null
+
+        override fun compressToCache(sourceUri: String): File? {
+            if (failNext) return null
+            return File("build/tmp_test_cover.webp").also { lastInput = it }
+        }
+
+        override fun prepareCameraCapture(): Uri = Uri.parse("content://fake/camera")!!
+    }
+
+    private class FakeFoodImageStorage : FoodImageStorage {
+        override fun resolve(relativePath: String?): File? = null
+        override fun coverDir(): File = File("unused")
+        override fun adopt(tempFile: File): String? = "fake_cover.webp"
+    }
+}

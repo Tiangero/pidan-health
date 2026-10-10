@@ -20,8 +20,10 @@ object FoodUnit {
  * 录入时一次性算好本次的克数、五大营养实际摄入与花费，写入 diet_record 后即为冻结值：
  * 此后食物模板如何修改 / 删除，历史记录永不回溯重算（历史冻结原则）。
  *
- * 计价约定：模板的 totalAmount（购买总量）一律按【克】填写（与场景 B 一致，
- * T6 表单价格区以重量计并展示"元/100g"单价），单价 = totalPrice / totalAmount (元/g)。
+ * 计价约定：模板的 totalAmount（购买总量）一律按【克】入库（与场景 B 一致）。
+ * "鸡蛋 10 个 8 元"这类按份购买场景由 T6 表单在输入侧解决：
+ * 价格区选「份」输入时，表单用 [purchaseAmountToGrams] 折算成克后再存，
+ * 库内与计费口径始终是克，单价 = totalPrice / totalAmount (元/g)。
  * 模板未填价格时本次花费记 0。
  */
 object DietIntakeCalculator {
@@ -68,11 +70,45 @@ object DietIntakeCalculator {
     }
 
     /** 单价 (元/g)：totalAmount 无效或未填价格时返回 0，本次花费记 0 */
-    private fun unitPricePerGram(template: FoodTemplate): Float {
-        val price = template.totalPrice ?: return 0f
-        val amountTotal = template.totalAmount ?: return 0f
-        if (price < 0f || amountTotal <= 0f) return 0f
-        return price / amountTotal
+    private fun unitPricePerGram(template: FoodTemplate): Float =
+        unitPricePer100Grams(template.totalPrice, template.totalAmount)?.let { it / PER_100_GRAMS } ?: 0f
+
+    // ---- 计价通用入口（T6 表单单价预览与落库计费共用，UI 层禁止自行计算）----
+
+    /**
+     * 每 100g 单价 (元/100g)。任一输入无效（价格未填 / 总量未填 / 总量 ≤ 0）返回 null，
+     * 由调用方展示为"暂无单价"。totalAmount 一律按【克】传入。
+     */
+    fun unitPricePer100Grams(totalPrice: Float?, totalAmountGrams: Float?): Float? {
+        if (totalPrice == null || totalAmountGrams == null) return null
+        if (totalPrice < 0f || totalAmountGrams <= 0f) return null
+        return totalPrice / totalAmountGrams * PER_100_GRAMS
+    }
+
+    /**
+     * 表单价格区「购买总量」→ 入库克数。
+     * - 按 g：数量即克数
+     * - 按份：数量 × 单份克重；单份克重缺失或数量无效返回 null（表单已拦截，此为兜底）
+     */
+    fun purchaseAmountToGrams(amount: Float, unitType: Int, weightPerServing: Float?): Float? {
+        if (amount <= 0f) return null
+        return when (unitType) {
+            FoodUnit.BY_GRAM -> amount
+            FoodUnit.BY_SERVING -> weightPerServing
+                ?.takeIf { it > 0f }
+                ?.let { it * amount }
+            else -> null
+        }
+    }
+
+    /**
+     * 表单「营养基准量」归一化：包装营养成分表未必按 100g 标注
+     * （如净含量 80g 的包装按"每 80g"标注），用户按包装基准输入，
+     * 入库前统一换算为每 100g。基准无效返回 null（表单已拦截，此为兜底）。
+     */
+    fun normalizeToPer100g(valuePerBasis: Float, basisGrams: Float): Float? {
+        if (valuePerBasis < 0f || basisGrams <= 0f) return null
+        return valuePerBasis * PER_100_GRAMS / basisGrams
     }
 
     /** 每百克基准（营养素均按每 100g 标注） */

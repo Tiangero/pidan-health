@@ -16,14 +16,26 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.pidan.health.feature.exercise.ui.ExerciseScreen
+import com.pidan.health.feature.food.ui.FoodEditScreen
 import com.pidan.health.feature.food.ui.FoodLibraryScreen
 import com.pidan.health.feature.record.ui.RecordScreen
 import com.pidan.health.feature.stats.ui.StatsScreen
+
+/** 一级 Tab 之外的路由（二级页） */
+object Routes {
+    /** 新建/编辑食物页：foodId 缺省 -1 表示新建，新建与编辑复用同一页面 */
+    const val FOOD_EDIT = "food_edit?foodId={foodId}"
+    const val FOOD_EDIT_ARG_FOOD_ID = "foodId"
+    fun foodEdit(foodId: Long? = null): String =
+        if (foodId != null) "food_edit?foodId=$foodId" else "food_edit"
+}
 
 /**
  * 应用导航宿主：单 Activity + 底部四 Tab。
@@ -90,7 +102,20 @@ fun PidanNavHost(modifier: Modifier = Modifier) {
                 )
             }
             composable(TopLevelDestination.FOOD.route) {
-                FoodLibraryScreen()
+                FoodLibraryScreen(
+                    onNavigateToFoodEdit = { foodId -> navController.navigate(Routes.foodEdit(foodId)) }
+                )
+            }
+            composable(
+                route = Routes.FOOD_EDIT,
+                arguments = listOf(
+                    navArgument(Routes.FOOD_EDIT_ARG_FOOD_ID) {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                )
+            ) {
+                FoodEditScreen(onBack = { navController.popBackStack() })
             }
             composable(TopLevelDestination.EXERCISE.route) {
                 ExerciseScreen()

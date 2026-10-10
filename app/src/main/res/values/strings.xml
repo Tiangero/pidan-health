@@ -47,7 +47,6 @@
     <!-- 食物库（T5） -->
     <string name="food_empty_hint">食物库还是空的，先建一个食物吧</string>
     <string name="food_new">＋ 新建食物</string>
-    <string name="food_new_placeholder">新建食物页将在 T6 提供，敬请期待</string>
     <string name="quick_entry_title">录入「%1$s」</string>
     <string name="quick_entry_amount_by_serving">数量（份）</string>
     <string name="quick_entry_amount_by_gram">数量（g）</string>
@@ -56,4 +55,42 @@
     <string name="quick_entry_confirm">录入</string>
     <string name="quick_entry_cancel">取消</string>
     <string name="quick_entry_success">已记录「%1$s」，首页已更新</string>
+
+    <!-- 新建/编辑食物页（T6） -->
+    <string name="food_edit_title_new">新建食物</string>
+    <string name="food_edit_title_edit">编辑食物</string>
+    <string name="food_edit_section_basic">基本信息</string>
+    <string name="food_edit_name_label">食物名称 *</string>
+    <string name="food_edit_name_hint">例如：米饭</string>
+    <string name="food_edit_name_invalid">请填写食物名称</string>
+    <string name="food_edit_cover_label">封面</string>
+    <string name="food_edit_cover_empty">点击上传封面（自动压缩至 50KB 内）</string>
+    <string name="food_edit_cover_replace">点击可更换封面</string>
+    <string name="food_edit_cover_failed">封面压缩失败，请换一张试试</string>
+    <string name="food_edit_cover_camera">拍照上传</string>
+    <string name="food_edit_cover_gallery">从相册选择</string>
+    <string name="food_edit_cover_sheet_hint">图片将自动压缩：长边 ≤ 500px，WebP/JPEG，50KB 以内</string>
+    <string name="food_edit_unit_label">计量单位 *</string>
+    <string name="food_edit_unit_by_gram">按克 (g)</string>
+    <string name="food_edit_unit_by_serving">按份</string>
+    <string name="food_edit_serving_label">单份克重 *</string>
+    <string name="food_edit_serving_hint">选择「按份」时必须填写，用于换算营养与价格</string>
+    <string name="food_edit_serving_invalid">按份录入必须填写有效的单份克重</string>
+    <string name="food_edit_section_nutrition">营养成分</string>
+    <string name="food_edit_basis_label">营养基准量 (g)</string>
+    <string name="food_edit_basis_hint">按包装营养成分表的标注基准填写（默认 100），营养素按同一基准填，App 自动换算为每 100g</string>
+    <string name="food_edit_basis_invalid">基准量必须为正数</string>
+    <string name="food_edit_sodium_label">钠 (mg)</string>
+    <string name="food_edit_sodium_preview">≈ %1$s g 盐</string>
+    <string name="food_edit_section_price">价格信息</string>
+    <string name="food_edit_price_label">购买金额 (元)</string>
+    <string name="food_edit_amount_label_by_gram">购买总量 (g)</string>
+    <string name="food_edit_amount_label_by_serving">购买总量 (份)</string>
+    <string name="food_edit_price_invalid">金额与总量需成对填写且有效</string>
+    <string name="food_edit_price_invalid_serving">购买总量按份时需先填写单份克重</string>
+    <string name="food_edit_unit_price_label">单价（自动计算）</string>
+    <string name="food_edit_unit_price_value">%1$s 元 / 100g</string>
+    <string name="food_edit_unit_price_empty">填写金额与总量后自动计算</string>
+    <string name="food_edit_save">保存</string>
+    <string name="food_edit_save_invalid">请先完善必填项</string>
 </resources>

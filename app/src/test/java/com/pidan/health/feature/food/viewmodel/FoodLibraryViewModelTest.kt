@@ -184,6 +184,7 @@ class FoodLibraryViewModelTest {
     private class FakeFoodImageStorage : FoodImageStorage {
         override fun resolve(relativePath: String?): File? = null
         override fun coverDir(): File = File("unused")
+        override fun adopt(tempFile: File): String? = null
     }
 
     private class FakeDateProvider(private val today: String) : DateProvider {

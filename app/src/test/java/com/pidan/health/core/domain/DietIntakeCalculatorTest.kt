@@ -119,4 +119,82 @@ class DietIntakeCalculatorTest {
             riceTemplate().copy(unitType = FoodUnit.BY_GRAM), 80f
         )!!, 0.001f)
     }
+
+    // ---- T6 价格区通用入口（表单单价预览与落库计费共用） ----
+
+    @Test
+    fun `unitPricePer100Grams - 设计稿示例 25元600g - 4_17元每100g`() {
+        val price = DietIntakeCalculator.unitPricePer100Grams(25f, 600f)!!
+        assertEquals(4.17f, price, 0.01f)
+    }
+
+    @Test
+    fun `unitPricePer100Grams - 场景B米饭 10元1000g - 1元每100g`() {
+        assertEquals(1f, DietIntakeCalculator.unitPricePer100Grams(10f, 1000f)!!, 0.001f)
+    }
+
+    @Test
+    fun `unitPricePer100Grams - 价格或总量缺失无效 - 返回null`() {
+        assertNull(DietIntakeCalculator.unitPricePer100Grams(null, 600f))
+        assertNull(DietIntakeCalculator.unitPricePer100Grams(25f, null))
+        assertNull(DietIntakeCalculator.unitPricePer100Grams(25f, 0f))
+        assertNull(DietIntakeCalculator.unitPricePer100Grams(-1f, 600f))
+    }
+
+    @Test
+    fun `purchaseAmountToGrams - 按克即克数`() {
+        assertEquals(600f, DietIntakeCalculator.purchaseAmountToGrams(600f, FoodUnit.BY_GRAM, null)!!, 0.001f)
+    }
+
+    @Test
+    fun `purchaseAmountToGrams - 收集箱场景 鸡蛋10个8元 - 10份x50g=500g`() {
+        val grams = DietIntakeCalculator.purchaseAmountToGrams(10f, FoodUnit.BY_SERVING, 50f)!!
+        assertEquals(500f, grams, 0.001f)
+        // 8 元 / 500g = 1.6 元/100g
+        assertEquals(1.6f, DietIntakeCalculator.unitPricePer100Grams(8f, grams)!!, 0.001f)
+    }
+
+    @Test
+    fun `purchaseAmountToGrams - 按份缺单份克重或数量无效 - 返回null`() {
+        assertNull(DietIntakeCalculator.purchaseAmountToGrams(10f, FoodUnit.BY_SERVING, null))
+        assertNull(DietIntakeCalculator.purchaseAmountToGrams(0f, FoodUnit.BY_GRAM, null))
+        assertNull(DietIntakeCalculator.purchaseAmountToGrams(-1f, FoodUnit.BY_SERVING, 50f))
+    }
+
+    // ---- T6 营养基准量归一化（包装按非 100g 标注的场景） ----
+
+    @Test
+    fun `normalizeToPer100g - 基准80g碳水25g - 归一化为31_25g`() {
+        assertEquals(31.25f, DietIntakeCalculator.normalizeToPer100g(25f, 80f)!!, 0.001f)
+    }
+
+    @Test
+    fun `normalizeToPer100g - 默认基准100 - 数值不变`() {
+        assertEquals(25f, DietIntakeCalculator.normalizeToPer100g(25f, 100f)!!, 0.001f)
+    }
+
+    @Test
+    fun `normalizeToPer100g - 基准无效或数值为负 - 返回null`() {
+        assertNull(DietIntakeCalculator.normalizeToPer100g(25f, 0f))
+        assertNull(DietIntakeCalculator.normalizeToPer100g(-1f, 80f))
+    }
+
+    @Test
+    fun `场景B补充 - 收集箱鸡蛋场景按份计价 - 落库花费正确`() {
+        // 鸡蛋：按份（1个=50g），10个 8 元 → 表单折算入库 totalAmount=500g
+        val eggs = riceTemplate().copy(
+            id = 3L,
+            name = "鸡蛋",
+            unitType = FoodUnit.BY_SERVING,
+            weightPerServing = 50f,
+            carbsPer100g = 1.1f,
+            totalPrice = 8f,
+            totalAmount = 500f
+        )
+
+        val record = DietIntakeCalculator.buildDietRecord(eggs, 1f, today)!!
+
+        assertEquals(0.8f, record.cost, 0.001f) // 50g × (8 / 500)
+        assertEquals(0.55f, record.intakeCarbs, 0.001f)
+    }
 }

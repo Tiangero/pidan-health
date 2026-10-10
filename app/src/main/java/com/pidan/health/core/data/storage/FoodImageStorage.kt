@@ -16,6 +16,12 @@ interface FoodImageStorage {
 
     /** 封面根目录（T6 写入压缩图时使用） */
     fun coverDir(): File
+
+    /**
+     * 把压缩好的临时封面文件（cache 目录）收编进封面目录，返回相对路径；
+     * 移动失败返回 null（调用方保存时降级为无封面，不阻断保存）。
+     */
+    fun adopt(tempFile: File): String?
 }
 
 class FoodImageStorageImpl(context: Context) : FoodImageStorage {
@@ -28,6 +34,26 @@ class FoodImageStorageImpl(context: Context) : FoodImageStorage {
     }
 
     override fun coverDir(): File = dir.apply { mkdirs() }
+
+    override fun adopt(tempFile: File): String? {
+        if (!tempFile.isFile) return null
+        val target = File(coverDir(), adoptFileName(tempFile.extension))
+        return try {
+            if (tempFile.renameTo(target) || (tempFile.copyTo(target, overwrite = true).isFile && tempFile.delete())) {
+                target.name
+            } else {
+                null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /** 时间戳 + 随机数命名，避免同秒保存多个封面时互相覆盖 */
+    private fun adoptFileName(extension: String): String {
+        val ext = extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: ".webp"
+        return "cover_${System.currentTimeMillis()}_${(0..999).random()}$ext"
+    }
 
     private companion object {
         const val COVER_DIR_NAME = "food_covers"

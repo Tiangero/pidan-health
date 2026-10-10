@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider 路径声明：封面压缩/相机拍摄临时文件目录（cache/cover_tmp） -->
+<paths>
+    <cache-path
+        name="cover_tmp"
+        path="cover_tmp/" />
+</paths>

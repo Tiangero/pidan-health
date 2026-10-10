@@ -29,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,16 +50,17 @@ import com.pidan.health.core.designsystem.theme.BrandOrangeContainer
 import com.pidan.health.core.designsystem.theme.BrandOrangeDark
 import com.pidan.health.feature.food.viewmodel.FoodItemUi
 import com.pidan.health.feature.food.viewmodel.FoodLibraryViewModel
-import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * 食物库页：单列列表（封面 / 名称 / 单位标识 / 快捷录入「+」）+ 底部「新建食物」占位。
+ * 食物库页：单列列表（封面 / 名称 / 单位标识 / 快捷录入「+」）+ 底部「新建食物」。
  * 快捷录入走场景 B 固化计算写 diet_record，首页卡片响应式即时刷新。
- * 顶栏「管理」（批量删除/单选编辑）在 T7 实现。
+ * 「新建食物」/ 点击列表项 → T6 新建/编辑页（foodId 区分模式）。
+ * 顶栏「管理」（批量删除）在 T7 实现。
  */
 @Composable
 fun FoodLibraryScreen(
+    onNavigateToFoodEdit: (Long?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: FoodLibraryViewModel = koinViewModel()
 ) {
@@ -68,7 +68,6 @@ fun FoodLibraryScreen(
     val successMessage by viewModel.entrySuccessMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     // 录入成功提示
     LaunchedEffect(successMessage) {
@@ -80,12 +79,8 @@ fun FoodLibraryScreen(
         }
     }
 
-    // 「新建食物」页面在 T6 实现，T5 阶段点击给出提示而非无响应
-    val onNewFoodClick: () -> Unit = {
-        scope.launch {
-            snackbarHostState.showSnackbar(context.getString(R.string.food_new_placeholder))
-        }
-    }
+    // 「新建食物」→ 编辑页（foodId=null 新建模式）
+    val onNewFoodClick: () -> Unit = { onNavigateToFoodEdit(null) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -124,6 +119,7 @@ fun FoodLibraryScreen(
                 else -> FoodList(
                     items = state.items,
                     onQuickEntry = viewModel::startQuickEntry,
+                    onItemClick = { onNavigateToFoodEdit(it.id) },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -153,6 +149,7 @@ fun FoodLibraryScreen(
 private fun FoodList(
     items: List<FoodItemUi>,
     onQuickEntry: (FoodItemUi) -> Unit,
+    onItemClick: (FoodItemUi) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -161,16 +158,21 @@ private fun FoodList(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         items(items, key = { it.id }) { food ->
-            FoodItemRow(food = food, onQuickEntry = onQuickEntry)
+            FoodItemRow(
+                food = food,
+                onQuickEntry = onQuickEntry,
+                onClick = { onItemClick(food) }
+            )
         }
     }
 }
 
-/** 列表行（对齐设计稿 .food-item）：白卡 + 封面 + 名称/单位标识 + 「+」 */
+/** 列表行（对齐设计稿 .food-item）：白卡 + 封面 + 名称/单位标识 + 「+」；点击行进编辑页 */
 @Composable
 private fun FoodItemRow(
     food: FoodItemUi,
-    onQuickEntry: (FoodItemUi) -> Unit
+    onQuickEntry: (FoodItemUi) -> Unit,
+    onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -178,6 +180,7 @@ private fun FoodItemRow(
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface)
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)

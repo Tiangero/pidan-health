@@ -1,5 +1,6 @@
 package com.pidan.health.app.di
 
+import com.pidan.health.feature.food.viewmodel.FoodEditViewModel
 import com.pidan.health.feature.food.viewmodel.FoodLibraryViewModel
 import com.pidan.health.feature.record.viewmodel.RecordViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -27,6 +28,16 @@ val uiModule: Module = module {
             dietRepository = get(),
             foodImageStorage = get(),
             dateProvider = get()
+        )
+    }
+
+    // 新建/编辑食物页（新建与编辑复用，foodId 经 SavedStateHandle 从路由取）
+    viewModel {
+        FoodEditViewModel(
+            foodRepository = get(),
+            foodImageStorage = get(),
+            coverCompressor = get(),
+            savedStateHandle = get()
         )
     }
 }
