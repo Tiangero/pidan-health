@@ -35,4 +35,12 @@ interface FoodTemplateDao {
     /** 备份导入时清空重建（T11） */
     @Query("DELETE FROM food_template")
     suspend fun deleteAll()
+
+    /** 全量读取（备份导出 T11 用），按 id 升序保证导入重插顺序稳定 */
+    @Query("SELECT * FROM food_template ORDER BY id ASC")
+    suspend fun getAll(): List<FoodTemplate>
+
+    /** 备份导入批量重插（T11，主键 id 随备份保留） */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(foods: List<FoodTemplate>)
 }

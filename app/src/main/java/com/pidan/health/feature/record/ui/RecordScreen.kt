@@ -43,6 +43,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun RecordScreen(
     onNavigateToFood: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RecordViewModel = koinViewModel()
 ) {
@@ -72,7 +73,7 @@ fun RecordScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    TextButton(onClick = { /* TODO(T9): 接入设置页 */ }) {
+                    TextButton(onClick = onNavigateToSettings) {
                         Text(
                             text = stringResource(R.string.action_settings),
                             style = MaterialTheme.typography.labelLarge,

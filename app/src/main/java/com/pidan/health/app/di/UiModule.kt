@@ -4,6 +4,7 @@ import com.pidan.health.feature.food.viewmodel.FoodEditViewModel
 import com.pidan.health.feature.food.viewmodel.FoodLibraryViewModel
 import com.pidan.health.feature.exercise.viewmodel.ExerciseViewModel
 import com.pidan.health.feature.record.viewmodel.RecordViewModel
+import com.pidan.health.feature.settings.viewmodel.SettingsViewModel
 import com.pidan.health.feature.stats.viewmodel.StatsViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.module.Module
@@ -57,6 +58,14 @@ val uiModule: Module = module {
             dietRepository = get(),
             snapshotRepository = get(),
             dateProvider = get()
+        )
+    }
+
+    // 设置页（T11：备份导出/导入 + 自定义营养系数）
+    viewModel {
+        SettingsViewModel(
+            userPreferencesRepository = get(),
+            backupManager = get()
         )
     }
 }

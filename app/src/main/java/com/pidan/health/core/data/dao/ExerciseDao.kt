@@ -28,4 +28,12 @@ interface ExerciseDao {
     /** 全量读取（备份导出 T11 用） */
     @Query("SELECT * FROM exercise_record ORDER BY date DESC")
     suspend fun getAll(): List<ExerciseRecord>
+
+    /** 备份导入批量重插（T11，按主键 date 覆盖） */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(records: List<ExerciseRecord>)
+
+    /** 备份导入时清空重建（T11） */
+    @Query("DELETE FROM exercise_record")
+    suspend fun deleteAll()
 }

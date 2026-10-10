@@ -2,10 +2,13 @@ package com.pidan.health.core.data.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * 食物模板表：食物库基础信息，所有营养数据强制统一为"每100g"标准。
+ * @Serializable 供 T11 备份导出/导入序列化。
  */
+@Serializable
 @Entity(tableName = "food_template")
 data class FoodTemplate(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

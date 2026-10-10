@@ -34,4 +34,12 @@ interface SnapshotDao {
     /** 全量读取（备份导出 T11 用） */
     @Query("SELECT * FROM daily_snapshot ORDER BY date DESC")
     suspend fun getAll(): List<DailySnapshot>
+
+    /** 备份导入批量重插（T11，按主键 date 覆盖） */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(snapshots: List<DailySnapshot>)
+
+    /** 备份导入时清空重建（T11） */
+    @Query("DELETE FROM daily_snapshot")
+    suspend fun deleteAll()
 }

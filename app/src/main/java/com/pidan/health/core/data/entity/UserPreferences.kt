@@ -2,10 +2,13 @@ package com.pidan.health.core.data.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * 用户配置表：存储自定义系数和开关。单行数据（id 固定为 1）。
+ * @Serializable 供 T11 备份导出/导入序列化。
  */
+@Serializable
 @Entity(tableName = "user_preferences")
 data class UserPreferences(
     @PrimaryKey val id: Int = 1,          // 固定为1，单例模式

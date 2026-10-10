@@ -102,6 +102,14 @@ interface DietDao {
     @Insert
     suspend fun insert(record: DietRecord): Long
 
+    /** 备份导入批量重插（T11，主键 id 随备份保留） */
+    @Insert
+    suspend fun insertAll(records: List<DietRecord>)
+
+    /** 备份导入时清空重建（T11） */
+    @Query("DELETE FROM diet_record")
+    suspend fun deleteAll()
+
     @Query("DELETE FROM diet_record WHERE id = :id")
     suspend fun deleteById(id: Long)
 

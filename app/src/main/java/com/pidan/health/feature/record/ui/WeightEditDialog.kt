@@ -33,7 +33,8 @@ fun WeightEditDialog(
     previewTargets: List<String>?,
     onWeightInputChange: (String) -> Unit,
     onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onNavigateToSettings: (() -> Unit)? = null
 ) {
     var weightText by remember { mutableStateOf(initialWeight?.toString() ?: "") }
     val focusRequester = remember { FocusRequester() }
@@ -79,6 +80,19 @@ fun WeightEditDialog(
                             text = line,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                if (onNavigateToSettings != null) {
+                    TextButton(
+                        onClick = onNavigateToSettings,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.weight_dialog_factors_link),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }

@@ -26,6 +26,7 @@ import com.pidan.health.feature.exercise.ui.ExerciseScreen
 import com.pidan.health.feature.food.ui.FoodEditScreen
 import com.pidan.health.feature.food.ui.FoodLibraryScreen
 import com.pidan.health.feature.record.ui.RecordScreen
+import com.pidan.health.feature.settings.ui.SettingsScreen
 import com.pidan.health.feature.stats.ui.StatsScreen
 
 /** 一级 Tab 之外的路由（二级页） */
@@ -35,6 +36,9 @@ object Routes {
     const val FOOD_EDIT_ARG_FOOD_ID = "foodId"
     fun foodEdit(foodId: Long? = null): String =
         if (foodId != null) "food_edit?foodId=$foodId" else "food_edit"
+
+    /** 设置页（T11：备份导出/导入 + 自定义营养系数） */
+    const val SETTINGS = "settings"
 }
 
 /**
@@ -98,7 +102,8 @@ fun PidanNavHost(modifier: Modifier = Modifier) {
                             launchSingleTop = true
                             restoreState = true
                         }
-                    }
+                    },
+                    onNavigateToSettings = { navController.navigate(Routes.SETTINGS) }
                 )
             }
             composable(TopLevelDestination.FOOD.route) {
@@ -122,6 +127,9 @@ fun PidanNavHost(modifier: Modifier = Modifier) {
             }
             composable(TopLevelDestination.STATS.route) {
                 StatsScreen()
+            }
+            composable(Routes.SETTINGS) {
+                SettingsScreen(onBack = { navController.popBackStack() })
             }
         }
     }

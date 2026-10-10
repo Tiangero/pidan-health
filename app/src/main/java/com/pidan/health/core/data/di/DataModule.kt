@@ -2,6 +2,8 @@ package com.pidan.health.core.data.di
 
 import androidx.room.Room
 import com.pidan.health.core.data.PidanDatabase
+import com.pidan.health.core.data.backup.BackupManager
+import com.pidan.health.core.data.backup.BackupManagerImpl
 import com.pidan.health.core.data.repository.DietRepository
 import com.pidan.health.core.data.repository.DietRepositoryImpl
 import com.pidan.health.core.data.repository.ExerciseRepository
@@ -52,4 +54,7 @@ val dataModule: Module = module {
 
     // 封面强制压缩（T6：长边≤500px、WebP 优先、质量 80、≤50KB）
     single<CoverImageCompressor> { CoverImageCompressorImpl(androidContext()) }
+
+    // 本地备份（T11：zip = 五表 JSON + 封面，导出至 Downloads，覆盖导入）
+    single<BackupManager> { BackupManagerImpl(get(), get(), androidContext()) }
 }

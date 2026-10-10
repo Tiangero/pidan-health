@@ -2,13 +2,16 @@ package com.pidan.health.core.data.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * 饮食记录表：录入时即固化本次的实际营养摄入值与花费（历史数据完全冻结，永不回溯重算）；
  * 首页展示时直接对 diet_record 自身聚合，无需 JOIN 模板。
  *
  * 注意：不设外键。删除食物模板时，历史饮食记录必须保留。
+ * @Serializable 供 T11 备份导出/导入序列化。
  */
+@Serializable
 @Entity(tableName = "diet_record")
 data class DietRecord(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

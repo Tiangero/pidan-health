@@ -9,3 +9,5 @@
 .workbuddy
 .externalNativeBuild
 .cxx
+.env
+.kotlin

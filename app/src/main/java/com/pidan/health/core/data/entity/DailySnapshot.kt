@@ -2,11 +2,14 @@ package com.pidan.health.core.data.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * 每日快照表（核心防坑设计）：解决"历史数据永不回溯重算"的需求。
  * 每天首次打开 APP 或修改体重时，生成/更新当天的快照，锁定当天的体重和营养目标。
+ * @Serializable 供 T11 备份导出/导入序列化。
  */
+@Serializable
 @Entity(tableName = "daily_snapshot")
 data class DailySnapshot(
     @PrimaryKey val date: String,         // 日期 "YYYY-MM-DD"
