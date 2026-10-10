@@ -142,11 +142,21 @@ class RecordViewModel(
             ?.let { formatPreviewTargets(NutritionCalculator.computeTargets(it, cachedFactors)) }
     }
 
-    /** 弹窗确认：写入体重并更新当天快照（快照生成时机 2），历史快照不动 */
-    fun confirmWeightInput(weightText: String) {
+    /**
+     * 弹窗确认：写入体重并更新快照（快照生成时机 2），历史快照不动。
+     * date 为 null 时写今天；补录历史日期时以该日期为主键写快照
+     * （refreshWithWeightOn，用户显式补录动作）。未来日期非法，直接忽略。
+     */
+    fun confirmWeightInput(weightText: String, date: String? = null) {
         val weight = weightText.toFloatOrNull()?.takeIf { it.isValidWeight() } ?: return
+        val targetDate = date ?: dateProvider.today()
+        if (targetDate > dateProvider.today()) return
         viewModelScope.launch {
-            snapshotManager.refreshWithWeight(weight)
+            if (targetDate == dateProvider.today()) {
+                snapshotManager.refreshWithWeight(weight)
+            } else {
+                snapshotManager.refreshWithWeightOn(targetDate, weight)
+            }
             _uiState.update { it.copy(needsWeightSetup = false) }
             _weightPreview.value = null
         }

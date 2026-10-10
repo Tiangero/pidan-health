@@ -132,8 +132,8 @@ fun RecordScreen(
             initialWeight = if (showSetupGuide) null else state.todayWeight,
             previewTargets = previewTargets,
             onWeightInputChange = viewModel::onWeightDraftChanged,
-            onConfirm = {
-                viewModel.confirmWeightInput(it)
+            onConfirm = { weightText, date ->
+                viewModel.confirmWeightInput(weightText, date)
                 showWeightDialog = false
             },
             onDismiss = {

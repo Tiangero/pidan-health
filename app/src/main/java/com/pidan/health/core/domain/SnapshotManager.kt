@@ -32,6 +32,13 @@ interface SnapshotManager {
     suspend fun refreshWithWeight(weightKg: Float): DailySnapshot
 
     /**
+     * 补录历史体重（2026-10-10 新增）：以指定日期为主键写入快照，
+     * 当天系数 + 该体重重算目标。用户显式补录动作，允许覆盖该日快照；
+     * 日期合法性（不得晚于今天）由调用方校验。
+     */
+    suspend fun refreshWithWeightOn(date: String, weightKg: Float): DailySnapshot
+
+    /**
      * 修改自定义系数：保持当天体重不变，仅重算目标覆盖当天快照。
      * 无任何体重记录时返回 null（改系数不可能改变体重）。
      */
@@ -53,6 +60,12 @@ class SnapshotManagerImpl(
 
     override suspend fun refreshWithWeight(weightKg: Float): DailySnapshot {
         val snapshot = buildSnapshot(dateProvider.today(), weightKg)
+        snapshotRepository.upsertSnapshot(snapshot)
+        return snapshot
+    }
+
+    override suspend fun refreshWithWeightOn(date: String, weightKg: Float): DailySnapshot {
+        val snapshot = buildSnapshot(date, weightKg)
         snapshotRepository.upsertSnapshot(snapshot)
         return snapshot
     }
