@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -369,6 +370,9 @@ class FoodEditViewModelTest {
         override fun observeAll(): Flow<List<FoodTemplate>> = state
 
         override suspend fun getById(id: Long): FoodTemplate? = state.value.firstOrNull { it.id == id }
+
+        override fun observeById(id: Long): Flow<FoodTemplate?> =
+            state.map { list -> list.firstOrNull { it.id == id } }
 
         private var nextId = 100L
 

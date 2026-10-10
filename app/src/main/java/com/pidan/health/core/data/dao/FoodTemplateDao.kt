@@ -19,6 +19,10 @@ interface FoodTemplateDao {
     @Query("SELECT * FROM food_template WHERE id = :id LIMIT 1")
     suspend fun getById(id: Long): FoodTemplate?
 
+    /** 单条响应式观察（详情页：编辑保存返回后自动刷新） */
+    @Query("SELECT * FROM food_template WHERE id = :id LIMIT 1")
+    fun observeById(id: Long): Flow<FoodTemplate?>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(food: FoodTemplate): Long
 

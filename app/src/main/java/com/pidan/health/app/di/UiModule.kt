@@ -1,5 +1,6 @@
 package com.pidan.health.app.di
 
+import com.pidan.health.feature.food.viewmodel.FoodDetailViewModel
 import com.pidan.health.feature.food.viewmodel.FoodEditViewModel
 import com.pidan.health.feature.food.viewmodel.FoodLibraryViewModel
 import com.pidan.health.feature.exercise.viewmodel.ExerciseViewModel
@@ -48,6 +49,15 @@ val uiModule: Module = module {
             foodImageStorage = get(),
             coverCompressor = get(),
             ocrStrategy = get(),
+            savedStateHandle = get()
+        )
+    }
+
+    // 食物详情页（只读，与编辑页分离；foodId 经 SavedStateHandle 从路由取）
+    viewModel {
+        FoodDetailViewModel(
+            foodRepository = get(),
+            foodImageStorage = get(),
             savedStateHandle = get()
         )
     }

@@ -60,12 +60,13 @@ import org.koin.androidx.compose.koinViewModel
 /**
  * 食物库页：单列列表（封面 / 名称 / 单位标识 / 快捷录入「+」）+ 底部「新建食物」。
  * 快捷录入走场景 B 固化计算写 diet_record，首页卡片响应式即时刷新。
- * 「新建食物」/ 点击列表项 → T6 新建/编辑页（foodId 区分模式）。
+ * 「新建食物」→ T6 编辑页；点击列表项 → 详情页（只读，顶栏「编辑」再进编辑页）。
  * 顶栏「管理」进入管理模式（T7）：多选 + 批量删除，隐藏「+」与「新建食物」，
  * 底部操作栏（全选 / 删除 / 完成），删除前有防呆确认。
  */
 @Composable
 fun FoodLibraryScreen(
+    onNavigateToFoodDetail: (Long) -> Unit,
     onNavigateToFoodEdit: (Long?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: FoodLibraryViewModel = koinViewModel()
@@ -149,7 +150,7 @@ fun FoodLibraryScreen(
                     selectedIds = state.selectedIds,
                     onQuickEntry = viewModel::startQuickEntry,
                     onToggleSelect = viewModel::toggleSelected,
-                    onItemClick = { onNavigateToFoodEdit(it.id) },
+                    onItemClick = { onNavigateToFoodDetail(it.id) },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -405,8 +406,8 @@ private fun FoodCover(food: FoodItemUi) {
     }
 }
 
-/** 占位色板（对齐设计稿 coverColors，按名称哈希稳定取色） */
-private val CoverPalette = listOf(
+/** 占位色板（对齐设计稿 coverColors，按名称哈希稳定取色；详情页占位封面复用） */
+internal val CoverPalette = listOf(
     Color(0xFFF97316), Color(0xFFD97706), Color(0xFF65A30D),
     Color(0xFF0D9488), Color(0xFF7C3AED), Color(0xFFDB2777)
 )

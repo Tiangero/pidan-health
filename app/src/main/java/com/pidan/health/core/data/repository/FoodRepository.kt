@@ -13,6 +13,9 @@ interface FoodRepository {
 
     suspend fun getById(id: Long): FoodTemplate?
 
+    /** 单条响应式观察（详情页用，模板被删/编辑后自动响应） */
+    fun observeById(id: Long): Flow<FoodTemplate?>
+
     /** 新建模板，返回自增 id */
     suspend fun insert(food: FoodTemplate): Long
 
@@ -30,6 +33,8 @@ class FoodRepositoryImpl(
     override fun observeAll(): Flow<List<FoodTemplate>> = foodTemplateDao.observeAll()
 
     override suspend fun getById(id: Long): FoodTemplate? = foodTemplateDao.getById(id)
+
+    override fun observeById(id: Long): Flow<FoodTemplate?> = foodTemplateDao.observeById(id)
 
     override suspend fun insert(food: FoodTemplate): Long = foodTemplateDao.insert(food)
 

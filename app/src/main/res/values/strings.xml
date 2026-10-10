@@ -128,6 +128,14 @@
     <string name="food_edit_save">保存</string>
     <string name="food_edit_save_invalid">请先完善必填项</string>
 
+    <!-- 食物详情页（只读，2026-10-10 与编辑页拆分） -->
+    <string name="topbar_title_food_detail">食物详情</string>
+    <string name="food_detail_serving_label">单份克重</string>
+    <string name="food_detail_nutrition_title">营养成分（每 100g）</string>
+    <string name="food_detail_sodium_note">≈ %1$s mg 钠</string>
+    <string name="food_detail_total_amount_label">购买总量</string>
+    <string name="food_detail_price_empty">未填写</string>
+
     <!-- OCR 拍照识别（T8） -->
     <string name="food_edit_ocr_action">拍照识别</string>
     <string name="food_edit_ocr_hint">拍一张包装营养成分表，自动填入下方数值（识别后可手动修改）</string>

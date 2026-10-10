@@ -23,6 +23,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.pidan.health.feature.exercise.ui.ExerciseScreen
+import com.pidan.health.feature.food.ui.FoodDetailScreen
 import com.pidan.health.feature.food.ui.FoodEditScreen
 import com.pidan.health.feature.food.ui.FoodLibraryScreen
 import com.pidan.health.feature.record.ui.RecordScreen
@@ -36,6 +37,10 @@ object Routes {
     const val FOOD_EDIT_ARG_FOOD_ID = "foodId"
     fun foodEdit(foodId: Long? = null): String =
         if (foodId != null) "food_edit?foodId=$foodId" else "food_edit"
+
+    /** 食物详情页（只读）：与编辑页分离，顶栏「编辑」再进编辑页 */
+    const val FOOD_DETAIL = "food_detail?foodId={foodId}"
+    fun foodDetail(foodId: Long): String = "food_detail?foodId=$foodId"
 
     /** 设置页（T11：备份导出/导入 + 自定义营养系数） */
     const val SETTINGS = "settings"
@@ -108,7 +113,25 @@ fun PidanNavHost(modifier: Modifier = Modifier) {
             }
             composable(TopLevelDestination.FOOD.route) {
                 FoodLibraryScreen(
+                    onNavigateToFoodDetail = { foodId ->
+                        navController.navigate(Routes.foodDetail(foodId))
+                    },
                     onNavigateToFoodEdit = { foodId -> navController.navigate(Routes.foodEdit(foodId)) }
+                )
+            }
+            composable(
+                route = Routes.FOOD_DETAIL,
+                arguments = listOf(
+                    navArgument(Routes.FOOD_EDIT_ARG_FOOD_ID) {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                )
+            ) { entry ->
+                val foodId = entry.arguments?.getLong(Routes.FOOD_EDIT_ARG_FOOD_ID) ?: -1L
+                FoodDetailScreen(
+                    onBack = { navController.popBackStack() },
+                    onEdit = { navController.navigate(Routes.foodEdit(foodId)) }
                 )
             }
             composable(
