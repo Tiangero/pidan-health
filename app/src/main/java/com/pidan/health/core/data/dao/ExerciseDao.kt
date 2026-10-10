@@ -21,6 +21,10 @@ interface ExerciseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(record: ExerciseRecord)
 
+    /** 显式切回「休息」：删除该日记录（无记录 = 休息，保持库内只存真实运动状态） */
+    @Query("DELETE FROM exercise_record WHERE date = :date")
+    suspend fun deleteByDate(date: String)
+
     /** 全量读取（备份导出 T11 用） */
     @Query("SELECT * FROM exercise_record ORDER BY date DESC")
     suspend fun getAll(): List<ExerciseRecord>

@@ -4,6 +4,7 @@ import com.pidan.health.core.common.time.DateProvider
 import com.pidan.health.core.data.entity.DietRecord
 import com.pidan.health.core.data.entity.FoodTemplate
 import com.pidan.health.core.data.model.DailySummary
+import com.pidan.health.core.data.model.DatedDailySummary
 import com.pidan.health.core.data.model.FoodRankItem
 import com.pidan.health.core.data.repository.DietRepository
 import com.pidan.health.core.data.repository.FoodRepository
@@ -170,7 +171,14 @@ class FoodLibraryViewModelTest {
         override suspend fun getDailySummary(date: String): DailySummary? = null
         override fun observeDailySummary(date: String): Flow<DailySummary?> = flowOf(null)
         override suspend fun getAvgDailyCostOfLast7Days(startDate: String): Float? = null
-        override suspend fun getTopFoodsOfMonth(monthPrefix: String): List<FoodRankItem> = emptyList()
+        override suspend fun getTopFoodsBetween(
+            startDate: String,
+            endDate: String
+        ): List<FoodRankItem> = emptyList()
+        override suspend fun getDailySummariesBetween(
+            startDate: String,
+            endDate: String
+        ): List<DatedDailySummary> = emptyList()
         override suspend fun insert(record: DietRecord): Long {
             records += record
             return record.id

@@ -2,7 +2,9 @@ package com.pidan.health.app.di
 
 import com.pidan.health.feature.food.viewmodel.FoodEditViewModel
 import com.pidan.health.feature.food.viewmodel.FoodLibraryViewModel
+import com.pidan.health.feature.exercise.viewmodel.ExerciseViewModel
 import com.pidan.health.feature.record.viewmodel.RecordViewModel
+import com.pidan.health.feature.stats.viewmodel.StatsViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.module.Module
 import org.koin.dsl.module
@@ -31,6 +33,13 @@ val uiModule: Module = module {
         )
     }
 
+    viewModel {
+        ExerciseViewModel(
+            exerciseRepository = get(),
+            dateProvider = get()
+        )
+    }
+
     // 新建/编辑食物页（新建与编辑复用，foodId 经 SavedStateHandle 从路由取）
     viewModel {
         FoodEditViewModel(
@@ -38,6 +47,15 @@ val uiModule: Module = module {
             foodImageStorage = get(),
             coverCompressor = get(),
             savedStateHandle = get()
+        )
+    }
+
+    // 统计分析页（T10）
+    viewModel {
+        StatsViewModel(
+            dietRepository = get(),
+            snapshotRepository = get(),
+            dateProvider = get()
         )
     }
 }

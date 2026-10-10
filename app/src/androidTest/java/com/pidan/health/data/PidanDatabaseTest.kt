@@ -182,7 +182,7 @@ class PidanDatabaseTest {
         // 上月记录，不参与本月统计
         dao.insert(dietRecord("2026-09-20", foodName = "鸡胸肉", cost = 3f))
 
-        val top = dao.getTopFoodsOfMonth("2026-10")
+        val top = dao.getTopFoodsBetween("2026-10-01", "2026-10-31")
         assertEquals(3, top.size)
         assertEquals("鸡胸肉", top[0].foodName)
         assertEquals(3, top[0].eatCount)

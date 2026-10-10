@@ -27,6 +27,10 @@ interface SnapshotDao {
     @Query("SELECT date, weight FROM daily_snapshot ORDER BY date DESC LIMIT 30")
     suspend fun getRecentWeights(): List<WeightTrendItem>
 
+    /** 统计页 - 区间内逐日快照（各日冻结目标，达标率均值计算用） */
+    @Query("SELECT * FROM daily_snapshot WHERE date BETWEEN :startDate AND :endDate ORDER BY date ASC")
+    suspend fun getSnapshotsBetween(startDate: String, endDate: String): List<DailySnapshot>
+
     /** 全量读取（备份导出 T11 用） */
     @Query("SELECT * FROM daily_snapshot ORDER BY date DESC")
     suspend fun getAll(): List<DailySnapshot>

@@ -44,6 +44,24 @@
     <string name="weight_dialog_confirm">保存</string>
     <string name="weight_dialog_cancel">取消</string>
 
+    <!-- 运动页（T9） -->
+    <string name="exercise_prev_month">上一月</string>
+    <string name="exercise_next_month">下一月</string>
+    <string name="exercise_week_mon">一</string>
+    <string name="exercise_week_tue">二</string>
+    <string name="exercise_week_wed">三</string>
+    <string name="exercise_week_thu">四</string>
+    <string name="exercise_week_fri">五</string>
+    <string name="exercise_week_sat">六</string>
+    <string name="exercise_week_sun">日</string>
+    <string name="exercise_type_aerobic">有氧</string>
+    <string name="exercise_type_anaerobic">无氧</string>
+    <string name="exercise_type_rest">休息</string>
+    <string name="exercise_sheet_title">设置运动状态</string>
+    <string name="exercise_overview_title">本月概览</string>
+    <string name="exercise_days_count">%1$d 天</string>
+    <string name="exercise_overview_hint">点击任意日期可切换状态，支持补签历史日期。</string>
+
     <!-- 食物库（T5） -->
     <string name="food_empty_hint">食物库还是空的，先建一个食物吧</string>
     <string name="food_new">＋ 新建食物</string>

@@ -21,6 +21,9 @@ interface SnapshotRepository {
     /** 近30天体重走势（按日期倒序） */
     suspend fun getRecentWeights(): List<WeightTrendItem>
 
+    /** 区间内逐日快照（统计页达标率均值计算用） */
+    suspend fun getSnapshotsBetween(startDate: String, endDate: String): List<DailySnapshot>
+
     suspend fun getAll(): List<DailySnapshot>
 }
 
@@ -35,6 +38,11 @@ class SnapshotRepositoryImpl(
     override suspend fun upsertSnapshot(snapshot: DailySnapshot) = snapshotDao.upsertSnapshot(snapshot)
 
     override suspend fun getRecentWeights(): List<WeightTrendItem> = snapshotDao.getRecentWeights()
+
+    override suspend fun getSnapshotsBetween(
+        startDate: String,
+        endDate: String
+    ): List<DailySnapshot> = snapshotDao.getSnapshotsBetween(startDate, endDate)
 
     override suspend fun getAll(): List<DailySnapshot> = snapshotDao.getAll()
 }

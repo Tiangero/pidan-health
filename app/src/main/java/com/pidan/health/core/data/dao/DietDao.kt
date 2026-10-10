@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import com.pidan.health.core.data.entity.DietRecord
 import com.pidan.health.core.data.model.DailySummary
+import com.pidan.health.core.data.model.DatedDailySummary
 import com.pidan.health.core.data.model.FoodRankItem
 import kotlinx.coroutines.flow.Flow
 
@@ -61,20 +62,42 @@ interface DietDao {
     suspend fun getAvgDailyCostOfLast7Days(startDate: String): Float?
 
     /**
-     * 统计页 - 食物排行：某月吃得最多的食物 Top 5。
+     * 统计页 - 日期区间内高频食物 Top 5（周/月切换共用）。
      * 使用记录内快照字段聚合，已删除模板的历史记录同样参与统计。
      */
     @Query(
         """
-        SELECT foodName, COUNT(id) as eatCount, SUM(cost) as totalCost
+        SELECT foodName, COUNT(id) as eatCount, SUM(cost) as totalCost,
+               SUM(intakeProtein) as totalProtein
         FROM diet_record
-        WHERE date LIKE :monthPrefix || '%'
+        WHERE date BETWEEN :startDate AND :endDate
         GROUP BY foodName
         ORDER BY eatCount DESC
         LIMIT 5
         """
     )
-    suspend fun getTopFoodsOfMonth(monthPrefix: String): List<FoodRankItem>
+    suspend fun getTopFoodsBetween(startDate: String, endDate: String): List<FoodRankItem>
+
+    /**
+     * 统计页 - 日期区间内逐日聚合（开销趋势曲线 / 营养达标均值计算）。
+     */
+    @Query(
+        """
+        SELECT
+            date,
+            COALESCE(SUM(intakeCarbs), 0)   as totalCarbs,
+            COALESCE(SUM(intakeProtein), 0) as totalProtein,
+            COALESCE(SUM(intakeFat), 0)     as totalFat,
+            COALESCE(SUM(intakeFiber), 0)   as totalFiber,
+            COALESCE(SUM(intakeSalt), 0)    as totalSalt,
+            COALESCE(SUM(cost), 0)          as totalCost
+        FROM diet_record
+        WHERE date BETWEEN :startDate AND :endDate
+        GROUP BY date
+        ORDER BY date ASC
+        """
+    )
+    suspend fun getDailySummariesBetween(startDate: String, endDate: String): List<DatedDailySummary>
 
     @Insert
     suspend fun insert(record: DietRecord): Long

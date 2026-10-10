@@ -182,6 +182,13 @@ class SnapshotManagerTest {
         override suspend fun getRecentWeights(): List<WeightTrendItem> =
             snapshots.values.sortedByDescending { it.date }.map { WeightTrendItem(it.date, it.weight) }
 
+        override suspend fun getSnapshotsBetween(
+            startDate: String,
+            endDate: String
+        ): List<DailySnapshot> = snapshots.values
+            .filter { it.date in startDate..endDate }
+            .sortedBy { it.date }
+
         override suspend fun getAll(): List<DailySnapshot> =
             snapshots.values.sortedByDescending { it.date }
     }
