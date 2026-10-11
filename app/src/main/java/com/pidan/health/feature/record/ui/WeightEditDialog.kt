@@ -3,6 +3,7 @@ package com.pidan.health.feature.record.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
@@ -108,29 +109,33 @@ fun WeightEditDialog(
                     singleLine = true
                 )
 
-                // 记录日期（只读字段 + 点击弹官方 DatePicker；interactionSource 共享
-                // 让整个字段区域可点，readOnly 字段自身不消费点击）
-                val dateInteraction = remember { MutableInteractionSource() }
-                OutlinedTextField(
-                    value = selectedDate?.let(::formatDateLabel)
-                        ?: stringResource(R.string.weight_dialog_date_today),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(text = stringResource(R.string.weight_dialog_date_label)) },
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Rounded.CalendarMonth,
-                            contentDescription = stringResource(R.string.weight_dialog_date_pick)
-                        )
-                    },
-                    interactionSource = dateInteraction,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = dateInteraction,
-                            indication = null
-                        ) { showDatePicker = true }
-                )
+                // 记录日期（只读字段 + 点击弹官方 DatePicker）。readOnly 字段内部的
+                // 文本手势会先消费点击，外层 clickable/interactionSource 共享收不到事件，
+                // 所以改用一层透明浮层（matchParentSize）覆盖整个字段区域接管点击。
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = selectedDate?.let(::formatDateLabel)
+                            ?: stringResource(R.string.weight_dialog_date_today),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(text = stringResource(R.string.weight_dialog_date_label)) },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Rounded.CalendarMonth,
+                                contentDescription = stringResource(R.string.weight_dialog_date_pick)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { showDatePicker = true }
+                    )
+                }
 
                 if (previewTargets != null) {
                     Text(
