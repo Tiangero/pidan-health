@@ -41,7 +41,11 @@ object OcrImageRules {
  */
 interface CoverImageCompressor {
 
-    /** 压缩来源图片，成功返回 cache 临时文件，失败返回 null（调用方提示后可继续手动录入） */
+    /**
+     * 压缩来源图片，成功返回 cache 临时文件，失败返回 null（调用方提示后可继续手动录入）。
+     * 来源若是本应用的相机临时原图（cover_tmp/camera_*），压缩结束后（无论成败）即删除，
+     * 避免相机原图（单张可达数 MB）长期滞留 cache 撑爆缓存（2026-10-11 实测 20 张积到 107MB）。
+     */
     fun compressToCache(sourceUri: String): File?
 
     /** 准备相机拍摄输出文件并返回可授权给相机 App 的 Uri（TakePicture 契约用） */
@@ -88,9 +92,14 @@ class CoverImageCompressorImpl(private val context: Context) : CoverImageCompres
     } catch (e: Exception) {
         Log.e(TAG, "封面压缩失败 uri=$sourceUri", e)
         null
+    } finally {
+        // 相机原图用完即弃（成败都删），只删本应用 cover_tmp 下的 camera_* 文件
+        deleteOwnTempSource(sourceUri)
     }
 
     override fun prepareCameraCapture(): Uri {
+        // 安全网：清掉 24h 前残留的临时文件（相机原图/压缩封面），兜底进程被杀等异常场景
+        purgeStaleTempFiles()
         val file = File(tempDir, "camera_${System.currentTimeMillis()}.jpg")
         file.createNewFile()
         return androidx.core.content.FileProvider.getUriForFile(
@@ -138,6 +147,9 @@ class CoverImageCompressorImpl(private val context: Context) : CoverImageCompres
     } catch (e: Exception) {
         Log.e(TAG, "OCR 图片准备失败 uri=$sourceUri", e)
         null
+    } finally {
+        // 原图已整体读入内存（或读取失败），相机临时原图用完即弃
+        deleteOwnTempSource(sourceUri)
     }
     }
 
@@ -200,10 +212,43 @@ class CoverImageCompressorImpl(private val context: Context) : CoverImageCompres
 
     private fun longEdgeOf(bitmap: Bitmap) = maxOf(bitmap.width, bitmap.height)
 
+    /**
+     * 仅当来源指向本应用 cover_tmp 目录下的相机临时原图（camera_*）时才删除。
+     * FileProvider Uri 的 path 相对于声明根（cacheDir，见 file_paths.xml），file:// 则直接取 path。
+     * 相册/外部存储等外部来源一律不动。
+     */
+    private fun deleteOwnTempSource(sourceUri: String) {
+        runCatching {
+            val uri = Uri.parse(sourceUri) ?: return
+            val path = when (uri.scheme) {
+                "file" -> uri.path
+                "content" -> if (uri.authority == "${context.packageName}.fileprovider") uri.path else null
+                else -> null
+            } ?: return
+            val file = File(context.cacheDir, path)
+            if (file.isFile &&
+                file.parentFile?.canonicalPath == tempDir.canonicalPath &&
+                file.name.startsWith(CAMERA_TEMP_PREFIX)
+            ) {
+                file.delete()
+            }
+        }
+    }
+
+    /** 清理超过 24h 的临时文件（camera_* / cover_*），兜底崩溃或进程被杀留下的孤儿文件 */
+    private fun purgeStaleTempFiles() {
+        runCatching {
+            val deadline = System.currentTimeMillis() - STALE_TEMP_MS
+            tempDir.listFiles()?.forEach { if (it.lastModified() < deadline) it.delete() }
+        }
+    }
+
     private companion object {
         const val TAG = "CoverImageCompressor"
         const val TEMP_DIR_NAME = "cover_tmp"
         const val MIN_LONG_EDGE_PX = 200
         const val SHRINK_FACTOR = 0.8f
+        const val CAMERA_TEMP_PREFIX = "camera_"
+        const val STALE_TEMP_MS = 24 * 60 * 60 * 1000L
     }
 }
