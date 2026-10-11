@@ -11,3 +11,6 @@
 .cxx
 .env
 .kotlin
+# 正式签名文件与密码，绝不入库
+pidan-release.jks
+keystore.properties

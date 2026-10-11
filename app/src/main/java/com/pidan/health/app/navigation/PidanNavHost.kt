@@ -12,10 +12,12 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -28,10 +30,14 @@ import com.pidan.health.feature.food.ui.FoodEditScreen
 import com.pidan.health.feature.food.ui.FoodLibraryScreen
 import com.pidan.health.feature.record.ui.RecordScreen
 import com.pidan.health.feature.settings.ui.SettingsScreen
+import com.pidan.health.feature.splash.ui.SplashScreen
 import com.pidan.health.feature.stats.ui.StatsScreen
 
 /** 一级 Tab 之外的路由（二级页） */
 object Routes {
+    /** 开屏页（起始路由，展示完自动进首页且从回退栈移除） */
+    const val SPLASH = "splash"
+
     /** 新建/编辑食物页：foodId 缺省 -1 表示新建，新建与编辑复用同一页面 */
     const val FOOD_EDIT = "food_edit?foodId={foodId}"
     const val FOOD_EDIT_ARG_FOOD_ID = "foodId"
@@ -61,7 +67,9 @@ fun PidanNavHost(modifier: Modifier = Modifier) {
         // statusBarsPadding，否则外层会把 NavHost 推到状态栏下方，露出米色底
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            Column {
+            // 开屏页（不在 TopLevelDestination 中）不显示底部 Tab
+            if (currentDestination != null) {
+                Column {
                 // 设计稿 .tabbar：白底 + 顶部 1px 分隔线；containerColor 显式压成 surface，
                 // 避免 M3 默认 surfaceContainer 的紫灰色系漏出
                 HorizontalDivider(
@@ -91,14 +99,24 @@ fun PidanNavHost(modifier: Modifier = Modifier) {
                         )
                     }
                 }
+                }
             }
         }
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = TopLevelDestination.RECORD.route,
+            startDestination = Routes.SPLASH,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(Routes.SPLASH) {
+                SplashScreen()
+                LaunchedEffect(Unit) {
+                    delay(1_600)
+                    navController.navigate(TopLevelDestination.RECORD.route) {
+                        popUpTo(Routes.SPLASH) { inclusive = true }
+                    }
+                }
+            }
             composable(TopLevelDestination.RECORD.route) {
                 RecordScreen(
                     onNavigateToFood = {

@@ -7,4 +7,8 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- 品牌色（与 Compose BrandOrange 对齐） -->
+    <color name="ic_launcher_background">#FFEA580C</color>
+    <color name="splash_background">#FFF97316</color>
 </resources>

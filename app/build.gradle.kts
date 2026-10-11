@@ -1,9 +1,18 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+}
+
+// 正式签名：从根目录 keystore.properties 读取（该文件与 jks 均被 .gitignore 忽略）。
+// 属性文件不存在时（如他人 clone 项目）release 自动回退 debug 签名，保证本地能装能跑。
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.isFile) keystorePropsFile.inputStream().use { load(it) }
 }
 
 android {
@@ -38,6 +47,17 @@ android {
         buildConfigField("String", "BAIDU_OCR_SK", "\"${envVars["BAIDU_OCR_SK"] ?: ""}\"")
     }
 
+    signingConfigs {
+        create("release") {
+            if (keystorePropsFile.isFile) {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true // R8 算法，缩小包体积
@@ -46,6 +66,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = if (keystorePropsFile.isFile) {
+                signingConfigs.getByName("release")
+            } else {
+                // 无正式 keystore 时回退 debug 签名（产物名为 app-release-unsigned 的场景已消除）
+                signingConfigs.getByName("debug")
+            }
         }
     }
     compileOptions {
@@ -69,6 +95,8 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    // 开屏页：兼容 API 26+ 的系统 SplashScreen（橙色底 + 品牌图标）
+    implementation(libs.androidx.core.splashscreen)
     // 裁剪库 CropImageActivity 是 AppCompatActivity，需要 AppCompat 主题与运行时
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.lifecycle.runtime.ktx)
