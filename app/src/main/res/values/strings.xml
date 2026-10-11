@@ -140,6 +140,10 @@
     <!-- OCR 拍照识别（T8） -->
     <string name="food_edit_ocr_action">OCR识别</string>
     <string name="food_edit_ocr_hint">拍照或从相册选择营养成分表图片，自动填入下方数值（识别后可手动修改）</string>
+    <string name="food_edit_ocr_source_title">OCR识别</string>
+    <string name="food_edit_ocr_source_hint">选择图片来源，下一步框住营养成分表区域</string>
+    <string name="food_edit_ocr_source_camera">拍照识别</string>
+    <string name="food_edit_ocr_source_gallery">从相册选择图片</string>
     <string name="food_edit_ocr_crop_title">框住营养成分表</string>
     <string name="food_edit_ocr_crop_hint">拖动边角调整范围，框住完整的营养成分表</string>
     <string name="food_edit_ocr_crop_confirm">开始识别</string>

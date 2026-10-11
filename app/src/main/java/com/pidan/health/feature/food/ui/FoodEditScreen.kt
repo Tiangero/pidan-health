@@ -88,7 +88,9 @@ fun FoodEditScreen(
     var showCoverSheet by remember { mutableStateOf(false) }
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
 
-    // ---- OCR 拍照识别（T8）：TakePicture 原图 → 页内裁剪浮层框选营养表 → OCR → 解析回填表单 ----
+    // ---- OCR 识别（T8，2026-10-11 改版）：入口弹来源选择（拍照/相册）→ 页内裁剪浮层
+    //      框选营养表 → OCR → 解析回填表单。两条来源都经过同一个裁剪浮层。 ----
+    var showOcrSheet by remember { mutableStateOf(false) }
     var ocrCameraUri by remember { mutableStateOf<Uri?>(null) }
 
     // 裁剪浮层入参：非 null 即全屏展示裁剪页（拍照完成后直接进入，页面上确认/取消）
@@ -109,6 +111,11 @@ fun FoodEditScreen(
     ) { success ->
         if (success) ocrCameraUri?.let { ocrCropUri = it }
     }
+
+    // OCR 相册来源（Photo Picker，无需权限）：选完直接进裁剪浮层
+    val ocrGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri -> uri?.let { ocrCropUri = it } }
 
     // 压缩失败提示（一次性消费）
     LaunchedEffect(state.coverFailed) {
@@ -195,11 +202,7 @@ fun FoodEditScreen(
                         stringResource(R.string.food_edit_sodium_preview, formatPreview(it))
                     },
                     isRecognizing = state.isRecognizing,
-                    onOcrClick = {
-                        val uri = viewModel.prepareOcrCapture()
-                        ocrCameraUri = uri
-                        ocrCameraLauncher.launch(uri)
-                    },
+                    onOcrClick = { showOcrSheet = true },
                     onNutritionChange = viewModel::onNutritionChange
                 )
 
@@ -248,7 +251,25 @@ fun FoodEditScreen(
         )
     }
 
-    // OCR 裁剪浮层：拍完照直接全屏框选营养表，页面上同时有确认/取消
+    if (showOcrSheet) {
+        OcrSourceSheet(
+            onCamera = {
+                showOcrSheet = false
+                val uri = viewModel.prepareOcrCapture()
+                ocrCameraUri = uri
+                ocrCameraLauncher.launch(uri)
+            },
+            onGallery = {
+                showOcrSheet = false
+                ocrGalleryLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            onDismiss = { showOcrSheet = false }
+        )
+    }
+
+    // OCR 裁剪浮层：拍照/选图后直接全屏框选营养表，页面上同时有确认/取消
     ocrCropUri?.let { cropUri ->
         OcrCropOverlay(
             imageUri = cropUri,
@@ -368,8 +389,48 @@ private fun CoverSourceOption(
     }
 }
 
+/** OCR 来源弹层（与封面来源弹层同款式）：拍照 / 从相册选择，之后统一进裁剪浮层 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OcrSourceSheet(
+    onCamera: () -> Unit,
+    onGallery: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.food_edit_ocr_source_title),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = stringResource(R.string.food_edit_ocr_source_hint),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            CoverSourceOption(
+                icon = { Icon(Icons.Rounded.PhotoCamera, null, tint = BrandOrangeDark) },
+                label = stringResource(R.string.food_edit_ocr_source_camera),
+                onClick = onCamera
+            )
+            CoverSourceOption(
+                icon = { Icon(Icons.Rounded.PhotoLibrary, null, tint = BrandOrangeDark) },
+                label = stringResource(R.string.food_edit_ocr_source_gallery),
+                onClick = onGallery
+            )
+        }
+    }
+}
+
 /**
- * OCR 裁剪全屏浮层：拍照完成后直接进入，页面上同时提供「取消」和「开始识别」。
+ * OCR 裁剪全屏浮层：拍照/相册选图后直接进入，页面上同时提供「取消」和「开始识别」。
  * 嵌入库的 CropImageView（拖拽框选/双指缩放/自动放大仍是官方实现），不再跳库自带
  * 的 CropImageActivity——其确认按钮藏在 Toolbar 菜单里，部分主题/机型上不可见。
  * 输出 JPEG q90 写入 cache，成功后以文件 Uri 回调 onCropped 交由 VM 走 OCR 链路。

@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.DocumentScanner
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -278,7 +278,7 @@ fun NutritionCard(
                     colors = ButtonDefaults.textButtonColors(contentColor = BrandOrangeDark)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.PhotoCamera,
+                        imageVector = Icons.Rounded.DocumentScanner,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )
