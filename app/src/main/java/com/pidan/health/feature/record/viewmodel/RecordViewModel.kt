@@ -40,7 +40,9 @@ data class WeightDeltaUi(
     val direction: Int
 )
 
-/** 营养卡片单行展示数据（判定着色与进度全部在此算好，UI 零计算） */
+/** 营养卡片单行展示数据（判定着色与进度全部在此算好，UI 零计算）。
+ *  targetText 只含数值部分（如「198」「≤5」），单位「克」由 UI 固定渲染，
+ *  便于目标数字单独居中对齐（2026-10-11 拍板）。 */
 data class NutrientRowUi(
     @StringRes val labelRes: Int,
     val intakeText: String,
@@ -223,37 +225,41 @@ class RecordViewModel(
         )
     }
 
-    /** 碳水/脂肪：固定值目标 ±5g 绝对容差 */
+    /** 碳水/脂肪：固定值目标 ±5g 绝对容差（展示四舍五入取整，单位「克」由 UI 渲染） */
     private fun fixedValueRow(@StringRes labelRes: Int, intake: Float, target: Float): NutrientRowUi {
         val status = NutritionJudge.judgeFixedValue(intake, target)
         return NutrientRowUi(
             labelRes = labelRes,
-            intakeText = formatGrams(intake),
-            targetText = formatGrams(target),
+            intakeText = formatRounded(intake),
+            targetText = formatRounded(target),
             status = status,
             progress = safeProgress(intake, target)
         )
     }
 
-    /** 蛋白/纤维：区间目标 */
+    /**
+     * 蛋白/纤维：区间目标（2026-10-11 用户拍板）：
+     * 展示只取最低值（区间内即达标，环形进度以最低值为 100%）；
+     * 区间外才由 judgeRange 判超标，展示与判定解耦。
+     */
     private fun rangeRow(@StringRes labelRes: Int, intake: Float, min: Float, max: Float): NutrientRowUi {
         val status = NutritionJudge.judgeRange(intake, min, max)
         return NutrientRowUi(
             labelRes = labelRes,
-            intakeText = formatGrams(intake),
-            targetText = "${formatGrams(min).removeSuffix("g")}-${formatGrams(max)}",
+            intakeText = formatRounded(intake),
+            targetText = formatRounded(min),
             status = status,
-            progress = safeProgress(intake, max)
+            progress = safeProgress(intake, min)
         )
     }
 
-    /** 盐：只判上限（摄入为已换算的盐 g） */
+    /** 盐：只判上限（摄入为已换算的盐 g；展示与其他行统一：取整、≤ 上限 + 克） */
     private fun upperLimitRow(@StringRes labelRes: Int, intake: Float, max: Float): NutrientRowUi {
         val status = NutritionJudge.judgeUpperLimit(intake, max)
         return NutrientRowUi(
             labelRes = labelRes,
-            intakeText = formatGrams(intake),
-            targetText = "≤${formatGrams(max)}",
+            intakeText = formatRounded(intake),
+            targetText = "≤${formatRounded(max)}",
             status = status,
             progress = safeProgress(intake, max)
         )
@@ -273,6 +279,9 @@ class RecordViewModel(
 
     private fun formatGrams(value: Float): String =
         if (value == value.toInt().toFloat()) "${value.toInt()}g" else String.format(Locale.US, "%.1fg", value)
+
+    /** 营养数值四舍五入取整（不带单位；单位「克」只跟在目标值上，见用户 2026-10-11 拍板） */
+    private fun formatRounded(value: Float): String = Math.round(value).toString()
 
     /** 「2026-10-09」→「10月9日 周五」（顶栏日期展示） */
     private fun formatTodayLabel(isoDate: String): String {

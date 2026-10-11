@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -15,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pidan.health.R
@@ -80,20 +82,47 @@ private fun NutrientRow(
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f)
         )
-        Text(
-            text = "${row.intakeText} / ${row.targetText}",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = row.intakeText,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                // 摄入列 3 位数字空间，数据居中（2026-10-11 最终拍板）
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(INTAKE_COLUMN_WIDTH)
+            )
+            Text(
+                text = "/",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            // 目标数字单独一个 3 位数字模块，同样居中；「克」固定渲染在右侧
+            Text(
+                text = row.targetText,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(INTAKE_COLUMN_WIDTH)
+            )
+            Text(
+                text = stringResource(R.string.unit_gram),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+        }
         Text(
             text = stringResource(row.status.labelRes()),
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
             color = color,
+            textAlign = TextAlign.Center,
+            // 固定宽度（容纳「未达标」3 字）+ 居中：标签宽度不再随文案变化，
+            // 否则「达标」窄一截，左侧克数展示会跟着左右漂移（2026-10-11 用户反馈）
             modifier = Modifier
+                .width(STATUS_PILL_WIDTH)
                 .clip(RoundedCornerShape(6.dp))
                 .background(row.status.statusContainerColor())
-                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .padding(vertical = 3.dp)
         )
     }
 }
@@ -103,3 +132,9 @@ private fun com.pidan.health.core.domain.NutritionStatus.labelRes(): Int = when 
     com.pidan.health.core.domain.NutritionStatus.OK -> R.string.status_ok
     com.pidan.health.core.domain.NutritionStatus.OVER -> R.string.status_over
 }
+
+/** 数字列：14sp 下 3 位数字宽度，摄入/目标数字共用，数据居中（2026-10-11 最终拍板） */
+private val INTAKE_COLUMN_WIDTH = 28.dp
+
+/** 状态标签固定宽度：11sp 下容纳「未达标」3 字并留余量，五行标签右边缘严格对齐 */
+private val STATUS_PILL_WIDTH = 52.dp
