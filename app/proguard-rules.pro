@@ -19,3 +19,6 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Retrofit + kotlinx.serialization 依赖泛型签名做反射,保底声明
+-keepattributes Signature, InnerClasses, EnclosingMethod
