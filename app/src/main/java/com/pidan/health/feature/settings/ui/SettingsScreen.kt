@@ -277,12 +277,6 @@ private fun FactorConfigCard(
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = stringResource(R.string.settings_factors_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = SubText
-        )
         Spacer(modifier = Modifier.height(12.dp))
 
         FactorInputRow(
