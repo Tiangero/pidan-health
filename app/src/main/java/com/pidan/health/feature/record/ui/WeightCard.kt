@@ -1,6 +1,7 @@
 package com.pidan.health.feature.record.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,21 +47,33 @@ fun WeightCard(
                 text = stringResource(R.string.record_weight_title),
                 style = MaterialTheme.typography.titleMedium
             )
-            TextButton(onClick = onEditWeightClick) {
+            // 收紧默认 40dp 最小高度，避免标题行被撑高、标题离卡片顶部过远（2026-10-11）
+            TextButton(
+                onClick = onEditWeightClick,
+                contentPadding = PaddingValues(horizontal = 8.dp),
+                modifier = Modifier.height(30.dp)
+            ) {
                 Text(text = stringResource(R.string.action_edit))
             }
         }
 
-        Text(
-            text = state.todayWeight?.let { String.format(java.util.Locale.US, "%.1f", it) } ?: "--",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = stringResource(R.string.unit_kg),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        // 数值与单位同一行、基线对齐（此前是 Column 两个 Text，kg 掉到了下一行）
+        Row {
+            Text(
+                text = state.todayWeight?.let { String.format(java.util.Locale.US, "%.1f", it) } ?: "--",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.alignByBaseline()
+            )
+            Text(
+                text = stringResource(R.string.unit_kg),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .padding(start = 6.dp)
+                    .alignByBaseline()
+            )
+        }
 
         val weights = if (state.chartRange == WeightChartRange.D7) state.weights7 else state.weights30
         if (weights.isNotEmpty()) {
