@@ -10,5 +10,6 @@
 
     <!-- 品牌色（与 Compose BrandOrange 对齐） -->
     <color name="ic_launcher_background">#FFEA580C</color>
-    <color name="splash_background">#FFF97316</color>
+    <!-- 与自定义开屏页橙色渐变（FB923C→EA580C）的中点对齐，系统开屏切渐变页时底色不跳变 -->
+    <color name="splash_background">#FFF27524</color>
 </resources>

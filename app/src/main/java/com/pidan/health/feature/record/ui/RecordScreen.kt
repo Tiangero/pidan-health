@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +41,8 @@ import org.koin.androidx.compose.koinViewModel
  */
 @Composable
 fun RecordScreen(
+    /** 首开体重引导弹窗开关：开屏遮罩退场后才放行，避免弹窗压在开屏页上 */
+    showGuide: Boolean = true,
     onNavigateToFood: () -> Unit,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
@@ -58,7 +59,7 @@ fun RecordScreen(
 
     // 编辑弹窗 / 首开引导弹窗共用，一次只显示一个
     var showWeightDialog by remember { mutableStateOf(false) }
-    val showSetupGuide = state.needsWeightSetup && !showWeightDialog
+    val showSetupGuide = showGuide && state.needsWeightSetup && !showWeightDialog
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -94,16 +95,8 @@ fun RecordScreen(
             }
         }
     ) { innerPadding ->
-        if (state.isInitialLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize()
-                    .padding(24.dp)
-            )
-            return@Scaffold
-        }
-
+        // 数据全部来自本地 Room，首次发射在一两帧内到达；
+        // 首屏直接渲染内容（首帧还会被开屏遮罩盖住），不再显示全屏 loading
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
