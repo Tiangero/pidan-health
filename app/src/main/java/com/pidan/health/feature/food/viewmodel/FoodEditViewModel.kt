@@ -269,6 +269,18 @@ class FoodEditViewModel(
             return purchaseAmountToGrams() != null
         }
 
+    /**
+     * 价格区按份输入时单份克重是否缺失（金额与总量已成对填写，仅缺折算依据）。
+     * 用于价格卡内单份克重字段的独立错误提示，与「成对填写」提示区分。
+     */
+    val isPriceServingWeightMissing: Boolean
+        get() {
+            val s = _uiState.value
+            if (s.purchaseUnit != FoodUnit.BY_SERVING) return false
+            if (s.priceText.isBlank() || s.purchaseAmountText.isBlank()) return false
+            return parsePositive(s.weightPerServingText) == null
+        }
+
     val canSave: Boolean
         get() {
             val s = _uiState.value
@@ -330,7 +342,8 @@ class FoodEditViewModel(
                 name = snapshot.name.trim(),
                 coverImagePath = coverPath,
                 unitType = snapshot.unitType,
-                weightPerServing = if (snapshot.unitType == FoodUnit.BY_SERVING) weightPerServingOrNull() else null,
+                // 单份克重非空即存：计量单位按份时必填；计量单位按克但价格区按份折算时同样需要
+                weightPerServing = snapshot.weightPerServingText.toFloatOrNull()?.takeIf { it > 0f },
                 carbsPer100g = per100g(parseNonNegative(snapshot.carbsText) ?: 0f),
                 proteinPer100g = per100g(parseNonNegative(snapshot.proteinText) ?: 0f),
                 fatPer100g = per100g(parseNonNegative(snapshot.fatText) ?: 0f),

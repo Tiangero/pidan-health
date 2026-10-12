@@ -359,9 +359,14 @@ fun PriceCard(
     amountLabel: String,
     priceInvalid: Boolean,
     priceInvalidText: String,
+    /** 价格区按份但计量单位按克时补显单份克重输入（与基本信息卡共享同一 VM 字段） */
+    showServingWeight: Boolean,
+    servingWeightMissing: Boolean,
+    weightPerServingText: String,
     onPriceChange: (String) -> Unit,
     onPurchaseAmountChange: (String) -> Unit,
     onPurchaseUnitSelect: (Int) -> Unit,
+    onWeightPerServingChange: (String) -> Unit,
     unitPriceText: String
 ) {
     DashboardCard {
@@ -396,6 +401,22 @@ fun PriceCard(
                 .padding(top = 10.dp)
                 .fillMaxWidth()
         )
+
+        // 价格区按份折算需要单份克重；计量单位是按克时该输入框不在上方卡片，这里补显
+        if (showServingWeight) {
+            NumberField(
+                label = stringResource(R.string.food_edit_serving_label),
+                value = weightPerServingText,
+                onValueChange = onWeightPerServingChange,
+                modifier = Modifier.padding(top = 12.dp),
+                isError = servingWeightMissing,
+                supportingText = if (servingWeightMissing) {
+                    stringResource(R.string.food_edit_price_invalid_serving)
+                } else {
+                    null
+                }
+            )
+        }
 
         // 只读单价：随金额/总量实时重算
         OutlinedTextField(

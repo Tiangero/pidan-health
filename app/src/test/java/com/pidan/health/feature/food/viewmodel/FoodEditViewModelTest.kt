@@ -142,6 +142,28 @@ class FoodEditViewModelTest {
     }
 
     @Test
+    fun `价格区按份且计量单位按克 - 补填单份克重后可保存且折算入库`() = runTest {
+        val vm = newViewModel()
+        vm.onNameChange("坚果")
+        vm.onPriceChange("30")
+        vm.onPurchaseUnitSelect(1) // 价格区按份；计量单位保持按克（单份克重输入框由价格卡补显）
+        vm.onPurchaseAmountChange("10")
+
+        assertFalse(vm.isPriceValid)
+        assertTrue(vm.isPriceServingWeightMissing)
+
+        vm.onWeightPerServingChange("250")
+        assertTrue(vm.isPriceValid)
+        assertTrue(vm.canSave)
+
+        vm.save()
+        val saved = foodRepo.all().single()
+        assertEquals(2500f, saved.totalAmount!!, 0.001f) // 10 份 × 250g
+        assertEquals(30f, saved.totalPrice!!, 0.001f)
+        assertEquals(250f, saved.weightPerServing!!, 0.001f) // 单份克重随模板保存，编辑回填不丢
+    }
+
+    @Test
     fun `金额与总量只填一个 - 价格校验失败`() = runTest {
         val vm = newViewModel()
         vm.onNameChange("米饭")

@@ -4,10 +4,12 @@
     <style name="Theme.PidanHealth" parent="android:Theme.Material.Light.NoActionBar" />
 
     <!-- 开屏页（core-splashscreen，API 26+ 兼容，31+ 走系统 SplashScreen）：
-         橙色底 + 圆形品牌图标，退出后切回正式主题 -->
+         橙色底 + 圆形品牌图标，退出后切回正式主题。
+         注意：Android 12+ 规范要求 icon 内容只占画布中间 2/3 圆形区域，
+         全出血图会被系统裁切或被部分 ROM 加底板，因此用带透明边距的 splash_logo_padded -->
     <style name="Theme.PidanHealth.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo_padded</item>
         <item name="windowSplashScreenAnimationDuration">400</item>
         <item name="postSplashScreenTheme">@style/Theme.PidanHealth</item>
     </style>

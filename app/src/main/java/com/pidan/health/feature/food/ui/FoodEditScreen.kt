@@ -216,9 +216,14 @@ fun FoodEditScreen(
                     ),
                     priceInvalid = !viewModel.isPriceValid,
                     priceInvalidText = stringResource(R.string.food_edit_price_invalid),
+                    showServingWeight = state.purchaseUnit == FoodUnit.BY_SERVING &&
+                        state.unitType != FoodUnit.BY_SERVING,
+                    servingWeightMissing = viewModel.isPriceServingWeightMissing,
+                    weightPerServingText = state.weightPerServingText,
                     onPriceChange = viewModel::onPriceChange,
                     onPurchaseAmountChange = viewModel::onPurchaseAmountChange,
                     onPurchaseUnitSelect = viewModel::onPurchaseUnitSelect,
+                    onWeightPerServingChange = viewModel::onWeightPerServingChange,
                     unitPriceText = viewModel.unitPricePer100g?.let {
                         stringResource(R.string.food_edit_unit_price_value, formatPreview(it))
                     } ?: stringResource(R.string.food_edit_unit_price_empty)

@@ -24,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
@@ -92,7 +91,6 @@ fun SplashScreen(modifier: Modifier = Modifier) {
                         scaleY = iconScale
                         alpha = iconScale.coerceIn(0f, 1f)
                     }
-                    .shadow(elevation = 20.dp, shape = CircleShape, clip = false)
                     .clip(CircleShape)
             )
             Spacer(modifier = Modifier.height(24.dp))
