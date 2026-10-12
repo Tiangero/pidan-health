@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pidan.health.R
 import com.pidan.health.core.common.time.DateProvider
+import com.pidan.health.core.data.backup.AutoBackupOutcome
+import com.pidan.health.core.data.backup.CloudSyncManager
 import com.pidan.health.core.data.entity.DailySnapshot
 import com.pidan.health.core.data.entity.UserPreferences
 import com.pidan.health.core.data.model.DailySummary
@@ -78,7 +80,8 @@ class RecordViewModel(
     private val dietRepository: DietRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val snapshotManager: SnapshotManager,
-    private val dateProvider: DateProvider
+    private val dateProvider: DateProvider,
+    private val cloudSyncManager: CloudSyncManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RecordUiState())
@@ -94,6 +97,8 @@ class RecordViewModel(
     /** 每次回到前台调用：跨天后重取"今天"，重新订阅数据流 */
     fun onScreenResumed() {
         dataJob?.cancel()
+        // T13 自动备份：每日首次打开 App 触发（当日幂等；未配置/关闭/无网静默跳过）
+        viewModelScope.launch { cloudSyncManager.maybeAutoBackup() }
         dataJob = viewModelScope.launch {
             // 快照生成时机 1：当天首次打开（历史冻结由 SnapshotManager 保证）
             val ensured = snapshotManager.ensureTodaySnapshot()

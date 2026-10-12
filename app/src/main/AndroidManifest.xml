@@ -5,6 +5,9 @@
     <!-- T8 OCR：百度 OCR 走 HTTPS 网络请求（普通权限，安装即授予） -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- T13 自动备份前置：检查网络可用性/是否 Wi-Fi（普通权限，安装即授予，不弹窗） -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- T11 备份导出：仅 API 28 及以下写公开 Downloads 需要；29+ 走 MediaStore 免权限 -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"

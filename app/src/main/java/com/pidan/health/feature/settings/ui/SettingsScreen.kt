@@ -136,6 +136,9 @@ fun SettingsScreen(
                     onImport = { zipPicker.launch(arrayOf("application/zip")) }
                 )
             }
+            item(key = "cloud") {
+                CloudSyncCard()
+            }
             item(key = "factors") {
                 FactorConfigCard(
                     state = state,

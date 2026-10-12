@@ -12,6 +12,8 @@ import com.pidan.health.core.data.entity.UserPreferences
 import com.pidan.health.core.data.storage.FoodImageStorage
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.time.LocalDate
@@ -33,14 +35,23 @@ data class ImportSummary(
  *
  * 导出：五表序列化 + covers 打包 zip → 系统下载目录 Downloads/皮蛋健康/
  * 导入：系统文件选择器选 zip → 解析校验（失败不落库）→ 单事务清空五表重插 → 恢复封面。
+ *
+ * T13 新增字节级入口：[exportZipBytes] / [importBytes] 供云同步复用同一套编解码，
+ * 本地导出/导入与云端上传/下载共用一条数据链路。
  */
 interface BackupManager {
 
     /** 导出备份，返回展示用保存路径（如 Downloads/皮蛋健康/皮蛋健康_backup_20261010.zip） */
     suspend fun export(): Result<String>
 
+    /** 导出备份为 zip 字节（云端上传用，不落 Downloads） */
+    suspend fun exportZipBytes(): Result<ByteArray>
+
     /** 从 uri 导入备份（uri 来自系统文件选择器），事务失败/文件损坏时现有数据不受影响 */
     suspend fun import(uri: Uri): Result<ImportSummary>
+
+    /** 从 zip 字节导入（云端恢复用），失败整体回滚 */
+    suspend fun importBytes(bytes: ByteArray): Result<ImportSummary>
 }
 
 class BackupManagerImpl(
@@ -50,7 +61,35 @@ class BackupManagerImpl(
 ) : BackupManager {
 
     override suspend fun export(): Result<String> = runCatching {
-        // 事务内一次性取齐五表快照，保证导出数据内部一致
+        publishBytes(buildZip())
+    }
+
+    override suspend fun exportZipBytes(): Result<ByteArray> = runCatching {
+        buildZip()
+    }
+
+    override suspend fun import(uri: Uri): Result<ImportSummary> = runCatching {
+        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: throw IllegalStateException("无法读取所选文件")
+        importFromBytes(bytes)
+    }
+
+    override suspend fun importBytes(bytes: ByteArray): Result<ImportSummary> = runCatching {
+        importFromBytes(bytes)
+    }
+
+    // ---- zip 构建/解析（本地与云端共用） ----
+
+    private data class BackupSnapshot(
+        val foods: List<com.pidan.health.core.data.entity.FoodTemplate>,
+        val dietRecords: List<com.pidan.health.core.data.entity.DietRecord>,
+        val snapshots: List<com.pidan.health.core.data.entity.DailySnapshot>,
+        val exerciseRecords: List<com.pidan.health.core.data.entity.ExerciseRecord>,
+        val preferences: UserPreferences
+    )
+
+    /** 事务内一次性取齐五表快照（保证导出数据内部一致）→ zip 字节 */
+    private suspend fun buildZip(): ByteArray {
         val (foods, dietRecords, snapshots, exerciseRecords, prefs) = db.withTransaction {
             BackupSnapshot(
                 foods = db.foodTemplateDao().getAll(),
@@ -61,29 +100,34 @@ class BackupManagerImpl(
             )
         }
 
-        val tempZip = File.createTempFile("pidan_backup", ".zip", context.cacheDir)
-        try {
-            writeZip(
-                tempZip = tempZip,
-                foods = foods,
-                dietRecords = dietRecords,
-                snapshots = snapshots,
-                exerciseRecords = exerciseRecords,
-                prefs = prefs,
-                covers = foodImageStorage.coverDir().listFiles()?.filter { it.isFile } ?: emptyList()
-            )
-            publishZip(tempZip)
-        } finally {
-            tempZip.delete()
+        val buffer = ByteArrayOutputStream()
+        ZipOutputStream(BufferedOutputStream(buffer)).use { zos ->
+            fun putText(name: String, text: String) {
+                zos.putNextEntry(ZipEntry(name))
+                zos.write(text.toByteArray(Charsets.UTF_8))
+                zos.closeEntry()
+            }
+
+            putText(BackupCodec.FILE_FOODS, BackupCodec.serializeFoods(foods))
+            putText(BackupCodec.FILE_DIET, BackupCodec.serializeDietRecords(dietRecords))
+            putText(BackupCodec.FILE_SNAPSHOTS, BackupCodec.serializeSnapshots(snapshots))
+            putText(BackupCodec.FILE_EXERCISE, BackupCodec.serializeExercise(exerciseRecords))
+            putText(BackupCodec.FILE_PREFERENCES, BackupCodec.serializePreferences(prefs))
+
+            foodImageStorage.coverDir().listFiles()?.filter { it.isFile }?.forEach { cover ->
+                zos.putNextEntry(ZipEntry("${BackupCodec.ZIP_COVER_DIR}/${cover.name}"))
+                cover.inputStream().use { it.copyTo(zos) }
+                zos.closeEntry()
+            }
         }
+        return buffer.toByteArray()
     }
 
-    override suspend fun import(uri: Uri): Result<ImportSummary> = runCatching {
-        val parsed = readZip(uri).let { filesWithCovers ->
-            BackupCodec.parse(filesWithCovers.first, filesWithCovers.second)
-        }
+    /** zip 字节 → 校验 → 单事务清空五表重插（失败整体回滚）→ 恢复封面 */
+    private suspend fun importFromBytes(bytes: ByteArray): ImportSummary {
+        val (files, covers) = readZipBytes(bytes)
+        val parsed = BackupCodec.parse(files, covers)
 
-        // 单事务清空五表 + 重插：中途失败整体回滚，现有数据不受影响
         db.withTransaction {
             db.foodTemplateDao().deleteAll()
             db.dietDao().deleteAll()
@@ -99,7 +143,7 @@ class BackupManagerImpl(
 
         restoreCovers(parsed.coverFiles)
 
-        ImportSummary(
+        return ImportSummary(
             foodCount = parsed.foods.size,
             dietCount = parsed.dietRecords.size,
             snapshotCount = parsed.snapshots.size,
@@ -107,48 +151,8 @@ class BackupManagerImpl(
         )
     }
 
-    // ---- 导出细节 ----
-
-    private data class BackupSnapshot(
-        val foods: List<com.pidan.health.core.data.entity.FoodTemplate>,
-        val dietRecords: List<com.pidan.health.core.data.entity.DietRecord>,
-        val snapshots: List<com.pidan.health.core.data.entity.DailySnapshot>,
-        val exerciseRecords: List<com.pidan.health.core.data.entity.ExerciseRecord>,
-        val preferences: UserPreferences
-    )
-
-    private fun writeZip(
-        tempZip: File,
-        foods: List<com.pidan.health.core.data.entity.FoodTemplate>,
-        dietRecords: List<com.pidan.health.core.data.entity.DietRecord>,
-        snapshots: List<com.pidan.health.core.data.entity.DailySnapshot>,
-        exerciseRecords: List<com.pidan.health.core.data.entity.ExerciseRecord>,
-        prefs: UserPreferences,
-        covers: List<File>
-    ) {
-        ZipOutputStream(BufferedOutputStream(FileOutputStream(tempZip))).use { zos ->
-            fun putText(name: String, text: String) {
-                zos.putNextEntry(ZipEntry(name))
-                zos.write(text.toByteArray(Charsets.UTF_8))
-                zos.closeEntry()
-            }
-
-            putText(BackupCodec.FILE_FOODS, BackupCodec.serializeFoods(foods))
-            putText(BackupCodec.FILE_DIET, BackupCodec.serializeDietRecords(dietRecords))
-            putText(BackupCodec.FILE_SNAPSHOTS, BackupCodec.serializeSnapshots(snapshots))
-            putText(BackupCodec.FILE_EXERCISE, BackupCodec.serializeExercise(exerciseRecords))
-            putText(BackupCodec.FILE_PREFERENCES, BackupCodec.serializePreferences(prefs))
-
-            covers.forEach { cover ->
-                zos.putNextEntry(ZipEntry("${BackupCodec.ZIP_COVER_DIR}/${cover.name}"))
-                cover.inputStream().use { it.copyTo(zos) }
-                zos.closeEntry()
-            }
-        }
-    }
-
-    /** zip 落到系统下载目录（API 29+ 走 MediaStore 免权限；旧版本直写公开 Downloads，需运行时权限） */
-    private fun publishZip(tempZip: File): String {
+    /** zip 字节落盘到系统下载目录（API 29+ 走 MediaStore 免权限；旧版本直写公开 Downloads） */
+    private fun publishBytes(bytes: ByteArray): String {
         val fileName = "皮蛋健康_backup_" +
             LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + ".zip"
 
@@ -165,7 +169,7 @@ class BackupManagerImpl(
             val savedUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
                 ?: throw IllegalStateException("创建下载目录文件失败")
             resolver.openOutputStream(savedUri)?.use { out ->
-                tempZip.inputStream().use { it.copyTo(out) }
+                ByteArrayInputStream(bytes).copyTo(out)
             } ?: throw IllegalStateException("写入下载目录文件失败")
         } else {
             val dir = File(
@@ -173,39 +177,37 @@ class BackupManagerImpl(
                 EXPORT_DIR_NAME
             )
             if (!dir.exists() && !dir.mkdirs()) throw IllegalStateException("无法创建下载目录")
-            tempZip.copyTo(File(dir, fileName), overwrite = true)
+            File(dir, fileName).writeBytes(bytes)
         }
         return "Downloads/$EXPORT_DIR_NAME/$fileName"
     }
 
-    // ---- 导入细节 ----
+    // ---- zip 解析细节 ----
 
-    /** 解 zip：返回（数据 JSON 文本表, 封面文件名字节表） */
-    private fun readZip(uri: Uri): Pair<Map<String, String>, Map<String, ByteArray>> {
+    /** 解 zip 字节：返回（数据 JSON 文本表, 封面文件名字节表） */
+    private fun readZipBytes(bytes: ByteArray): Pair<Map<String, String>, Map<String, ByteArray>> {
         val files = mutableMapOf<String, String>()
         val covers = mutableMapOf<String, ByteArray>()
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            ZipInputStream(BufferedInputStream(input)).use { zis ->
-                var entry: ZipEntry? = zis.nextEntry
-                while (entry != null) {
-                    if (!entry.isDirectory) {
-                        val bytes = zis.readBytes()
-                        when {
-                            entry.name == BackupCodec.FILE_FOODS ||
-                                entry.name == BackupCodec.FILE_DIET ||
-                                entry.name == BackupCodec.FILE_SNAPSHOTS ||
-                                entry.name == BackupCodec.FILE_EXERCISE ||
-                                entry.name == BackupCodec.FILE_PREFERENCES ->
-                                files[entry.name] = String(bytes, Charsets.UTF_8)
+        ZipInputStream(BufferedInputStream(ByteArrayInputStream(bytes))).use { zis ->
+            var entry: ZipEntry? = zis.nextEntry
+            while (entry != null) {
+                if (!entry.isDirectory) {
+                    val entryBytes = zis.readBytes()
+                    when {
+                        entry.name == BackupCodec.FILE_FOODS ||
+                            entry.name == BackupCodec.FILE_DIET ||
+                            entry.name == BackupCodec.FILE_SNAPSHOTS ||
+                            entry.name == BackupCodec.FILE_EXERCISE ||
+                            entry.name == BackupCodec.FILE_PREFERENCES ->
+                            files[entry.name] = String(entryBytes, Charsets.UTF_8)
 
-                            entry.name.startsWith("${BackupCodec.ZIP_COVER_DIR}/") ->
-                                covers[sanitizeCoverName(entry.name)] = bytes
-                        }
+                        entry.name.startsWith("${BackupCodec.ZIP_COVER_DIR}/") ->
+                            covers[sanitizeCoverName(entry.name)] = entryBytes
                     }
-                    entry = zis.nextEntry
                 }
+                entry = zis.nextEntry
             }
-        } ?: throw IllegalStateException("无法读取所选文件")
+        }
         return files to covers
     }
 

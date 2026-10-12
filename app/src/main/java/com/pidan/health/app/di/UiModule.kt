@@ -5,6 +5,7 @@ import com.pidan.health.feature.food.viewmodel.FoodEditViewModel
 import com.pidan.health.feature.food.viewmodel.FoodLibraryViewModel
 import com.pidan.health.feature.exercise.viewmodel.ExerciseViewModel
 import com.pidan.health.feature.record.viewmodel.RecordViewModel
+import com.pidan.health.feature.settings.viewmodel.CloudSyncViewModel
 import com.pidan.health.feature.settings.viewmodel.SettingsViewModel
 import com.pidan.health.feature.stats.viewmodel.StatsViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -22,7 +23,8 @@ val uiModule: Module = module {
             dietRepository = get(),
             userPreferencesRepository = get(),
             snapshotManager = get(),
-            dateProvider = get()
+            dateProvider = get(),
+            cloudSyncManager = get()
         )
     }
 
@@ -76,6 +78,14 @@ val uiModule: Module = module {
         SettingsViewModel(
             userPreferencesRepository = get(),
             backupManager = get()
+        )
+    }
+
+    // 云端同步（T13：与设置页同屏但职责独立的 VM）
+    viewModel {
+        CloudSyncViewModel(
+            cloudSyncManager = get(),
+            cloudSyncStore = get()
         )
     }
 }

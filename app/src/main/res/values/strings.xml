@@ -176,4 +176,26 @@
     <string name="settings_salt_custom">自定义盐分上限</string>
     <string name="settings_factor_salt_max">盐分上限 (g)</string>
     <string name="settings_factors_save">保存系数</string>
+
+    <!-- 设置页 · 云端同步（T13） -->
+    <string name="settings_cloud_title">云端同步</string>
+    <string name="settings_cloud_hint">通过 WebDAV 将备份 zip 上传到坚果云等网盘，实现云端备份与换机恢复。坚果云用户请先在网页端「账户信息 → 安全选项 → 第三方应用管理」生成应用密码。</string>
+    <string name="settings_cloud_server_url">WebDAV 服务器地址</string>
+    <string name="settings_cloud_username">账号（坚果云为注册邮箱）</string>
+    <string name="settings_cloud_password">应用密码</string>
+    <string name="settings_cloud_test">测试连接并保存</string>
+    <string name="settings_cloud_test_ok">连接成功，配置已保存</string>
+    <string name="settings_cloud_backup_now">立即备份到云端</string>
+    <string name="settings_cloud_backup_done">已上传：%1$s</string>
+    <string name="settings_cloud_view_backups">查看云端备份</string>
+    <string name="settings_cloud_backups_empty">云端暂无备份文件</string>
+    <string name="settings_cloud_restore">恢复</string>
+    <string name="settings_cloud_restore_confirm_title">恢复将覆盖当前数据</string>
+    <string name="settings_cloud_restore_confirm_text">将从云端下载「%1$s」并覆盖本机全部数据（仅覆盖，不合并）。\n\n请确认后再继续。</string>
+    <string name="settings_cloud_restore_done">恢复完成：食物 %1$d、饮食 %2$d、快照 %3$d、运动 %4$d 条</string>
+    <string name="settings_cloud_auto_backup">每日首次打开自动备份</string>
+    <string name="settings_cloud_wifi_only">仅 Wi-Fi 网络同步</string>
+    <string name="settings_cloud_last_sync">最近同步：%1$s</string>
+    <string name="settings_cloud_last_sync_none">尚未同步过</string>
+    <string name="settings_cloud_not_configured">请先填写账号与应用密码并测试连接</string>
 </resources>
