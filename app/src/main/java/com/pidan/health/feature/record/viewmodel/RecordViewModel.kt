@@ -54,7 +54,6 @@ data class NutrientRowUi(
 )
 
 data class RecordUiState(
-    val isInitialLoading: Boolean = true,
     /** 顶栏日期展示，如「10月9日 周五」 */
     val todayLabel: String = "",
     /** 全新用户无任何快照 → 弹出体重引导 */
@@ -119,7 +118,6 @@ class RecordViewModel(
                     val w7 = recentWeightsAsc(7)
                     val w30 = recentWeightsAsc(30)
                     current.copy(
-                        isInitialLoading = false,
                         todayWeight = snapshot?.weight,
                         weights7 = w7,
                         weights30 = w30,
