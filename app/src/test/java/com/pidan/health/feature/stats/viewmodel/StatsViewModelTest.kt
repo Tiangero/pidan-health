@@ -157,6 +157,7 @@ class FakeDietRepo : DietRepository {
 
     override suspend fun getDailySummary(date: String): DailySummary? = null
     override fun observeDailySummary(date: String): Flow<DailySummary?> = flowOf(null)
+    override fun observeRecordsByDate(date: String): Flow<List<DietRecord>> = flowOf(emptyList())
     override suspend fun getAvgDailyCostOfLast7Days(startDate: String): Float? = null
     override suspend fun getDailySummariesBetween(
         startDate: String,

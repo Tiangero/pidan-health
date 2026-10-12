@@ -18,6 +18,7 @@ import com.pidan.health.core.domain.NutritionCalculator
 import com.pidan.health.core.domain.NutritionJudge
 import com.pidan.health.core.domain.NutritionStatus
 import com.pidan.health.core.domain.NutritionTargets
+import com.pidan.health.core.domain.FoodUnit
 import com.pidan.health.core.domain.SnapshotManager
 import com.pidan.health.core.domain.toNutritionFactors
 import kotlinx.coroutines.Job
@@ -53,6 +54,24 @@ data class NutrientRowUi(
     val progress: Float
 )
 
+/** 今日饮食明细单条：列表行 + 点击展开的五大数据全部预格式化，UI 零计算（红线 2） */
+data class DietRecordItemUi(
+    val id: Long,
+    val foodName: String,
+    /** 「150克」或「2份」（unitType 已随记录冗余固化） */
+    val amountText: String,
+    /** 「¥3.50」，无花费时为 null 不展示 */
+    val costText: String?,
+    /** 本条固化摄入的五大营养（g） */
+    val nutrientValues: List<DietNutrientValueUi>
+)
+
+/** 明细展开区单个营养值 */
+data class DietNutrientValueUi(
+    @StringRes val labelRes: Int,
+    val valueText: String
+)
+
 data class RecordUiState(
     /** 顶栏日期展示，如「10月9日 周五」 */
     val todayLabel: String = "",
@@ -65,6 +84,8 @@ data class RecordUiState(
     /** 当前区间的体重增减（区间不足 2 个点时为 null，UI 隐藏） */
     val weightDelta: WeightDeltaUi? = null,
     val nutrientRows: List<NutrientRowUi> = emptyList(),
+    /** 今日饮食明细列表（按录入时间升序） */
+    val todayDietRecords: List<DietRecordItemUi> = emptyList(),
     val todayCostText: String = "",
     val weekAvgCostText: String? = null
 )
@@ -110,10 +131,13 @@ class RecordViewModel(
 
             combine(
                 snapshotRepository.observeSnapshot(today),
-                dietRepository.observeDailySummary(today)
-            ) { snapshot, summary ->
-                Triple(snapshot, summary, dietRepository.getAvgDailyCostOfLast7Days(weekStart))
-            }.collect { (snapshot, summary, weekAvgCost) ->
+                dietRepository.observeDailySummary(today),
+                dietRepository.observeRecordsByDate(today)
+            ) { snapshot, summary, records ->
+                Triple(snapshot, summary, records)
+            }.collect { (snapshot, summary, records) ->
+                // 每次发射重查周均花费，录入当天首笔后「对比本周日均值」立即生效（与原实现一致）
+                val weekAvgCost = dietRepository.getAvgDailyCostOfLast7Days(weekStart)
                 _uiState.update { current ->
                     val w7 = recentWeightsAsc(7)
                     val w30 = recentWeightsAsc(30)
@@ -125,6 +149,7 @@ class RecordViewModel(
                             if (current.chartRange == WeightChartRange.D7) w7 else w30
                         ),
                         nutrientRows = buildNutrientRows(summary, snapshot),
+                        todayDietRecords = records.map { it.toItemUi() },
                         todayCostText = formatCost(summary?.totalCost ?: 0f),
                         weekAvgCostText = weekAvgCost?.let { formatCost(it) }
                     )
@@ -302,6 +327,37 @@ class RecordViewModel(
     }
 
     private fun formatCost(value: Float): String = String.format(Locale.US, "¥%.2f", value)
+
+    /** diet_record → 列表行 UI（克数与营养均为录入时固化值，直接格式化展示） */
+    private fun com.pidan.health.core.data.entity.DietRecord.toItemUi(): DietRecordItemUi =
+        DietRecordItemUi(
+            id = id,
+            foodName = foodName,
+            amountText = formatAmount(amount, unitType),
+            costText = cost.takeIf { it > 0f }?.let { formatCost(it) },
+            nutrientValues = listOf(
+                DietNutrientValueUi(R.string.nutrient_carbs, formatGram(intakeCarbs)),
+                DietNutrientValueUi(R.string.nutrient_protein, formatGram(intakeProtein)),
+                DietNutrientValueUi(R.string.nutrient_fat, formatGram(intakeFat)),
+                DietNutrientValueUi(R.string.nutrient_fiber, formatGram(intakeFiber)),
+                DietNutrientValueUi(R.string.nutrient_salt, formatGram(intakeSalt))
+            )
+        )
+
+    /** 「150克」/「2份」；按份时份数与克数同样取整优先 */
+    private fun formatAmount(amount: Float, unitType: Int): String {
+        val value = if (amount == amount.toInt().toFloat()) {
+            amount.toInt().toString()
+        } else {
+            String.format(Locale.US, "%.1f", amount)
+        }
+        val unit = if (unitType == FoodUnit.BY_SERVING) "份" else "克"
+        return "$value$unit"
+    }
+
+    /** 营养 g 值：整数不带小数，非整数保留 1 位（盐常出现 0.4g 这类小值） */
+    private fun formatGram(value: Float): String =
+        if (value == value.toInt().toFloat()) "${value.toInt()}g" else String.format(Locale.US, "%.1fg", value)
 
     private fun Float.isValidWeight(): Boolean = this > 0f && this < 500f
 }

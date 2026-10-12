@@ -18,6 +18,9 @@ interface DietRepository {
     /** 某天营养与花费聚合（响应式：录入/删除后首页自动刷新） */
     fun observeDailySummary(date: String): Flow<DailySummary?>
 
+    /** 某天饮食记录明细（响应式，按录入时间升序；克数与营养为录入时固化值） */
+    fun observeRecordsByDate(date: String): Flow<List<DietRecord>>
+
     /** 近7天日均花费（startDate 之后的按天花费取平均），无数据返回 null */
     suspend fun getAvgDailyCostOfLast7Days(startDate: String): Float?
 
@@ -44,6 +47,9 @@ class DietRepositoryImpl(
 
     override fun observeDailySummary(date: String): Flow<DailySummary?> =
         dietDao.observeDailySummary(date)
+
+    override fun observeRecordsByDate(date: String): Flow<List<DietRecord>> =
+        dietDao.observeRecordsByDate(date)
 
     override suspend fun getAvgDailyCostOfLast7Days(startDate: String): Float? =
         dietDao.getAvgDailyCostOfLast7Days(startDate)

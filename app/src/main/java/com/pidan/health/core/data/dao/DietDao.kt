@@ -49,6 +49,13 @@ interface DietDao {
     fun observeDailySummary(date: String): Flow<DailySummary?>
 
     /**
+     * 首页 - 今日饮食明细列表：逐条返回当天记录（克数与五大营养均为录入时固化值）。
+     * 按录入时间升序，符合「早 → 晚」的浏览顺序。
+     */
+    @Query("SELECT * FROM diet_record WHERE date = :date ORDER BY createdAt ASC")
+    fun observeRecordsByDate(date: String): Flow<List<DietRecord>>
+
+    /**
      * 首页 - 开销卡片：近7天日均花费（用于"对比本周日均值"）。
      */
     @Query(

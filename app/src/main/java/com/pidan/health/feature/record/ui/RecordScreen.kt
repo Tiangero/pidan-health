@@ -114,6 +114,9 @@ fun RecordScreen(
             item(key = "nutrition") {
                 NutritionCard(state = state)
             }
+            item(key = "diet_records") {
+                DietRecordsCard(records = state.todayDietRecords)
+            }
             item(key = "cost") {
                 CostCard(state = state)
             }

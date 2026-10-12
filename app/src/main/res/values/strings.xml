@@ -18,6 +18,9 @@
     <string name="record_weight_title">今日体重</string>
     <string name="record_nutrition_title">今日营养摄入</string>
     <string name="record_cost_title">今日饮食开销</string>
+    <string name="record_diet_title">今日饮食</string>
+    <string name="diet_records_empty">今天还没有饮食记录，点右下角「+」从食物库录入</string>
+    <string name="diet_record_cost">花费 %1$s</string>
     <string name="action_edit">编辑</string>
     <string name="action_settings">设置</string>
     <string name="unit_kg">kg</string>
